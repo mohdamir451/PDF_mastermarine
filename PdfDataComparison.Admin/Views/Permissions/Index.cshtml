@@ -1,0 +1,34 @@
+@using PdfDataComparison.Admin.Domain.Entities
+@{
+    ViewData["Title"] = "Page Permissions";
+    var roles = ViewBag.Roles as List<ApplicationRole>;
+    var pages = ViewBag.Pages as List<PagePermission>;
+}
+<div class="card">
+    <h3>Permissions Matrix</h3>
+    <form method="get" class="toolbar">
+        <select name="roleId">
+            @if (roles != null)
+            {
+                foreach (var r in roles)
+                {
+                    <option value="@r.Id" selected="@(ViewBag.SelectedRoleId == r.Id)">@r.Name</option>
+                }
+            }
+        </select>
+        <button type="submit">Load</button>
+    </form>
+
+    <table class="table">
+        <thead><tr><th>Page</th><th>Permission Key</th></tr></thead>
+        <tbody>
+        @if (pages != null)
+        {
+            foreach (var p in pages)
+            {
+                <tr><td>@p.PageName</td><td>@p.PermissionKey</td></tr>
+            }
+        }
+        </tbody>
+    </table>
+</div>

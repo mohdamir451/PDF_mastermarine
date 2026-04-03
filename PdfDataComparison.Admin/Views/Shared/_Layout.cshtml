@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - PDF Data Comparison</title>
+    <link rel="stylesheet" href="~/css/site.css" />
+</head>
+<body>
+<div class="app-shell">
+    @await Html.PartialAsync("_Sidebar")
+    <div class="main-panel">
+        @await Html.PartialAsync("_Topbar")
+        <main class="content-wrapper">
+            @RenderBody()
+        </main>
+    </div>
+</div>
+<script src="~/js/site.js"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

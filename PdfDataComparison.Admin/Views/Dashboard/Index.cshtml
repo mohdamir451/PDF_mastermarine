@@ -1,0 +1,11 @@
+@model DashboardVm
+@{ ViewData["Title"] = "Dashboard"; }
+<div class="grid stats-grid">
+    <div class="card stat"><h3>Total Users</h3><strong>@Model.TotalUsers</strong></div>
+    <div class="card stat"><h3>Active Users</h3><strong>@Model.ActiveUsers</strong></div>
+    <div class="card stat"><h3>Total Roles</h3><strong>@Model.TotalRoles</strong></div>
+    <div class="card stat"><h3>Comparison Jobs</h3><strong>@Model.TotalComparisonJobs</strong></div>
+    <div class="card stat"><h3>Pending Mismatches</h3><strong>@Model.PendingMismatches</strong></div>
+    <div class="card stat"><h3>Completed Submissions</h3><strong>@Model.CompletedSubmissions</strong></div>
+</div>
+<div class="card"><h3>Recent Activity</h3><ul>@foreach (var activity in Model.RecentActivity){<li>@activity</li>}</ul></div>

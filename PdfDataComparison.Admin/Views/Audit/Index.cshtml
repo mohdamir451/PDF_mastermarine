@@ -1,0 +1,5 @@
+@model List<PdfDataComparison.Admin.Domain.Entities.AuditLog>
+@{ ViewData["Title"] = "Audit Logs"; }
+<div class="card"><table class="table"><thead><tr><th>Action</th><th>By</th><th>Target</th><th>Timestamp</th><th>Notes</th></tr></thead><tbody>
+@foreach(var log in Model){<tr><td>@log.Action</td><td>@log.PerformedByName</td><td>@log.TargetEntity</td><td>@log.Timestamp.ToString("u")</td><td>@log.Notes</td></tr>}
+</tbody></table></div>

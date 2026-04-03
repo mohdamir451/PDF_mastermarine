@@ -1,0 +1,5 @@
+@model List<PdfDataComparison.Admin.Domain.Entities.ComparisonSubmission>
+@{ ViewData["Title"] = "Reports / Export History"; }
+<div class="card"><table class="table"><thead><tr><th>ID</th><th>Job</th><th>Submitted At</th><th></th></tr></thead><tbody>
+@foreach(var r in Model){<tr><td>@r.Id</td><td>@r.ComparisonJobId</td><td>@r.SubmittedAt.ToString("u")</td><td><a asp-action="Details" asp-route-id="@r.Id">Details</a></td></tr>}
+</tbody></table></div>

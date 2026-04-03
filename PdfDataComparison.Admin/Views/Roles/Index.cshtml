@@ -1,0 +1,6 @@
+@model List<PdfDataComparison.Admin.Domain.Entities.ApplicationRole>
+@{ ViewData["Title"] = "Role Management"; }
+<div class="card"><div class="toolbar"><a asp-action="Create" class="btn-primary">Create Role</a></div>
+<table class="table"><thead><tr><th>Role</th><th>Description</th><th>Actions</th></tr></thead><tbody>
+@foreach(var role in Model){<tr><td>@role.Name</td><td>@role.Description</td><td><a asp-action="Edit" asp-route-id="@role.Id">Edit</a></td></tr>}
+</tbody></table></div>

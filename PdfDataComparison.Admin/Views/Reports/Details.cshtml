@@ -1,0 +1,3 @@
+@model PdfDataComparison.Admin.Domain.Entities.ComparisonSubmission
+@{ ViewData["Title"] = "Submission Details"; }
+<div class="card"><h3>Submission #@Model.Id</h3><p>Submitted: @Model.SubmittedAt.ToString("u")</p><a asp-controller="ComparisonJobs" asp-action="DownloadExcel" asp-route-submissionId="@Model.Id" class="btn-primary">Download Excel</a></div>

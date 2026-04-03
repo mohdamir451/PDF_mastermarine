@@ -47,7 +47,7 @@ builder.Services.AddScoped<IComparisonService, ComparisonService>();
 builder.Services.AddScoped<IExportService, ExcelExportService>();
 
 builder.Services.AddScoped<IClaimsTransformation, PermissionClaimsTransformation>();
-builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 builder.Services.AddAuthorization(options =>
 {
     foreach (var policy in PermissionCatalog.AllPolicies)

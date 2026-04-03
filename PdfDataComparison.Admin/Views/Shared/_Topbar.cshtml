@@ -1,0 +1,17 @@
+<header class="topbar">
+    <div>
+        <h1>@ViewData["Title"]</h1>
+        <p class="muted">Enterprise PDF Data Comparison Console</p>
+    </div>
+    <div class="topbar-actions">
+        <input type="text" placeholder="Search..." />
+        <div class="user-menu">
+            <span>@User.Identity?.Name</span>
+            <a asp-controller="Profile" asp-action="ChangePassword">Profile</a>
+            <form asp-controller="Account" asp-action="Logout" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit">Logout</button>
+            </form>
+        </div>
+    </div>
+</header>

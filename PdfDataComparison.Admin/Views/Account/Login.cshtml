@@ -1,0 +1,15 @@
+@model LoginVm
+@{ Layout = null; }
+<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="~/css/site.css"/></head>
+<body class="auth-body">
+<div class="auth-card">
+    <h2>Sign in</h2>
+    <form method="post">
+        @Html.AntiForgeryToken()
+        <label>Username<input asp-for="Username" /></label>
+        <label>Password<input asp-for="Password" type="password" /></label>
+        <label class="inline"><input asp-for="RememberMe" type="checkbox"/>Remember me</label>
+        <button type="submit" class="btn-primary">Login</button>
+    </form>
+</div>
+</body></html>

@@ -1,0 +1,18 @@
+@model PagedResult<UserListItemVm>
+@{ ViewData["Title"] = "User Management"; }
+<div class="card">
+    <div class="toolbar"><a asp-action="Create" class="btn-primary">Create User</a></div>
+    <table class="table">
+        <thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Status</th><th>Roles</th><th>Actions</th></tr></thead>
+        <tbody>
+        @foreach(var user in Model.Items){
+            <tr>
+                <td>@user.FullName</td><td>@user.Email</td><td>@user.Department</td>
+                <td><span class="badge @(user.IsActive?"success":"danger")">@(user.IsActive?"Active":"Inactive")</span></td>
+                <td>@string.Join(", ", user.Roles)</td>
+                <td><a asp-action="Edit" asp-route-id="@user.Id">Edit</a></td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,24 @@
+@model ComparisonScreenVm
+@{ ViewData["Title"] = "PDF Comparison Screen"; }
+<div class="comparison-header card"><h3>@Model.JobTitle</h3><div><select id="layoutSelect"><option>side-by-side</option><option>top-bottom</option><option>bottom-top</option><option>right-left</option></select><button type="button" onclick="refreshPdf()">Refresh PDF</button></div></div>
+<form asp-action="Submit" method="post" id="comparisonForm">
+@Html.AntiForgeryToken()
+<input type="hidden" name="JobId" value="@Model.JobId" />
+<div id="comparisonLayout" class="comparison-layout side-by-side">
+    <section class="card pdf-panel"><iframe src="@Model.PdfUrl" class="pdf-frame"></iframe></section>
+    <section class="card form-panel">
+    <table class="table"><thead><tr><th>Field</th><th>Expected</th><th>Actual</th><th>Status</th></tr></thead><tbody>
+    @for(int i=0;i<Model.Fields.Count;i++){
+        <tr class="comparison-row" data-expected="@Model.Fields[i].ExpectedValue" data-required="@Model.Fields[i].IsRequired.ToString().ToLower()" data-blocking="@Model.Fields[i].IsBlocking.ToString().ToLower()">
+            <td>@Model.Fields[i].FieldLabel<input type="hidden" name="Fields[@i].Id" value="@Model.Fields[i].Id" /></td>
+            <td>@Model.Fields[i].ExpectedValue</td>
+            <td><input name="Fields[@i].ActualValue" value="@Model.Fields[i].ActualValue" @(Model.CanEdit?"":"disabled") /></td>
+            <td><span class="match-indicator">@(Model.Fields[i].IsMatch?"Match":"Mismatch")</span></td>
+        </tr>
+    }
+    </tbody></table>
+    </section>
+</div>
+<div class="card footer-actions"><span>Mismatches: <strong id="mismatchCount">0</strong></span><button type="reset">Reset</button><button id="submitBtn" type="submit" @(Model.CanSubmit?"":"disabled")>Submit</button></div>
+</form>
+@section Scripts {<script>initComparisonScreen();</script>}

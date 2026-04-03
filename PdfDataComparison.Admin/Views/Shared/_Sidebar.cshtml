@@ -1,0 +1,31 @@
+@using PdfDataComparison.Admin.Constants
+<aside class="sidebar" id="sidebar">
+    <div class="brand">PDF Compare</div>
+    <nav>
+        @if (User.HasClaim("permission", PermissionCatalog.DashboardView) || User.IsInRole("SuperAdmin"))
+        { <a asp-controller="Dashboard" asp-action="Index">Dashboard</a> }
+
+        @if (User.HasClaim("permission", PermissionCatalog.ComparisonJobsView) || User.IsInRole("SuperAdmin"))
+        {
+            <a asp-controller="ComparisonJobs" asp-action="Index">PDF Comparison Jobs</a>
+        }
+
+        @if (User.HasClaim("permission", PermissionCatalog.ReportsView) || User.IsInRole("SuperAdmin"))
+        { <a asp-controller="Reports" asp-action="Index">Reports / Exports</a> }
+
+        @if (User.HasClaim("permission", PermissionCatalog.UsersManage) || User.IsInRole("SuperAdmin"))
+        { <a asp-controller="Users" asp-action="Index">User Management</a> }
+
+        @if (User.HasClaim("permission", PermissionCatalog.RolesManage) || User.IsInRole("SuperAdmin"))
+        { <a asp-controller="Roles" asp-action="Index">Role Management</a> }
+
+        @if (User.HasClaim("permission", PermissionCatalog.PermissionsManage) || User.IsInRole("SuperAdmin"))
+        { <a asp-controller="Permissions" asp-action="Index">Page Permissions</a> }
+
+        @if (User.HasClaim("permission", PermissionCatalog.AuditLogsView) || User.IsInRole("SuperAdmin"))
+        { <a asp-controller="Audit" asp-action="Index">Audit Logs</a> }
+
+        @if (User.HasClaim("permission", PermissionCatalog.SettingsManage) || User.IsInRole("SuperAdmin"))
+        { <a asp-controller="Settings" asp-action="Index">Settings</a> }
+    </nav>
+</aside>

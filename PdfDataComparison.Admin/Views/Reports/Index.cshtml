@@ -1,5 +1,69 @@
 @model List<PdfDataComparison.Admin.Domain.Entities.ComparisonSubmission>
-@{ ViewData["Title"] = "Reports / Export History"; }
-<div class="card"><table class="table"><thead><tr><th>ID</th><th>Job</th><th>Submitted At</th><th></th></tr></thead><tbody>
-@foreach(var r in Model){<tr><td>@r.Id</td><td>@r.ComparisonJobId</td><td>@r.SubmittedAt.ToString("u")</td><td><a asp-action="Details" asp-route-id="@r.Id">Details</a></td></tr>}
-</tbody></table></div>
+@{
+    ViewData["Title"] = "Reports / Export History";
+    ViewData["Subtitle"] = "Submission archive with export access and traceability.";
+}
+
+<section class="page-hero">
+    <div>
+        <h2>Reports & Export History</h2>
+        <p>Track completed submissions and open detailed records for audit-ready exports.</p>
+    </div>
+    <span class="badge neutral">@Model.Count submissions</span>
+</section>
+
+<section class="card">
+    <div class="table-tools">
+        <label for="reportsQuickFilter" class="sr-only">Quick filter loaded rows</label>
+        <input id="reportsQuickFilter" class="table-quick-filter" type="search" placeholder="Quick filter visible rows" data-table-search data-table-target="reportsTable" data-table-count-target="reportsVisibleCount" />
+        <span class="badge neutral visible-count" id="reportsVisibleCount" aria-live="polite">0/0</span>
+        <button type="button" class="btn btn-ghost" data-density-target="reportsTableWrap" aria-pressed="false">Compact Rows</button>
+    </div>
+
+    <div class="loading-panel" data-loading-panel>
+        <div class="skeleton-row"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>
+        <div class="skeleton-row"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>
+    </div>
+
+    <div class="data-panel" data-data-panel hidden>
+        @if (Model.Any())
+        {
+            <div class="table-wrap" id="reportsTableWrap">
+                <table class="table" id="reportsTable" data-sortable>
+                <thead>
+                <tr>
+                    <th><button type="button" class="sort-btn" data-sort-col="0">Submission ID</button></th>
+                    <th><button type="button" class="sort-btn" data-sort-col="1">Job ID</button></th>
+                    <th><button type="button" class="sort-btn" data-sort-col="2">Submitted At (UTC)</button></th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td><strong>#@item.Id</strong></td>
+                        <td>@item.ComparisonJobId</td>
+                        <td>@item.SubmittedAt.ToString("u")</td>
+                        <td class="actions">
+                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-primary">Details</a>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <div class="empty-state-icon">RP</div>
+                <h3>No submissions yet</h3>
+                <p>Completed comparisons will appear here once submitted.</p>
+                <div class="empty-actions">
+                    <a asp-controller="ComparisonJobs" asp-action="Index" class="btn btn-secondary">Open Comparison Queue</a>
+                </div>
+            </div>
+        }
+    </div>
+</section>

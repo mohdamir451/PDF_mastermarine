@@ -1,2 +1,13 @@
-@{ ViewData["Title"] = "Error"; }
-<div class="card empty-state"><h3>Something went wrong</h3><p>Please contact support.</p></div>
+@{
+    ViewData["Title"] = "Error";
+    ViewData["Subtitle"] = "An unexpected error interrupted this request.";
+}
+
+<div class="card empty-state">
+    <div class="empty-state-icon">ER</div>
+    <h3>Something went wrong</h3>
+    <p>We could not complete this request. Try again, and if the issue persists, contact platform support.</p>
+    <div class="toolbar">
+        <a asp-controller="Dashboard" asp-action="Index" class="btn btn-primary">Go to Dashboard</a>
+    </div>
+</div>

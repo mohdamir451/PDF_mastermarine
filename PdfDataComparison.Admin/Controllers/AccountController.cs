@@ -42,7 +42,14 @@ public class AccountController(
         await auditService.LogAsync("Login", "Account", "User login success", user.Id, user.FullName);
 
         if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
-            return Redirect(returnUrl);
+        {
+            // Avoid redirecting to logout endpoint after successful login.
+            var normalizedReturnUrl = returnUrl.ToLowerInvariant();
+            if (!normalizedReturnUrl.Contains("/account/logout"))
+            {
+                return Redirect(returnUrl);
+            }
+        }
 
         return RedirectToAction("Index", "Dashboard");
     }

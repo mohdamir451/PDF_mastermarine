@@ -1,24 +1,101 @@
 @model ComparisonScreenVm
-@{ ViewData["Title"] = "PDF Comparison Screen"; }
-<div class="comparison-header card"><h3>@Model.JobTitle</h3><div><select id="layoutSelect"><option>side-by-side</option><option>top-bottom</option><option>bottom-top</option><option>right-left</option></select><button type="button" onclick="refreshPdf()">Refresh PDF</button></div></div>
-<form asp-action="Submit" method="post" id="comparisonForm">
-@Html.AntiForgeryToken()
-<input type="hidden" name="JobId" value="@Model.JobId" />
-<div id="comparisonLayout" class="comparison-layout side-by-side">
-    <section class="card pdf-panel"><iframe src="@Model.PdfUrl" class="pdf-frame"></iframe></section>
-    <section class="card form-panel">
-    <table class="table"><thead><tr><th>Field</th><th>Expected</th><th>Actual</th><th>Status</th></tr></thead><tbody>
-    @for(int i=0;i<Model.Fields.Count;i++){
-        <tr class="comparison-row" data-expected="@Model.Fields[i].ExpectedValue" data-required="@Model.Fields[i].IsRequired.ToString().ToLower()" data-blocking="@Model.Fields[i].IsBlocking.ToString().ToLower()">
-            <td>@Model.Fields[i].FieldLabel<input type="hidden" name="Fields[@i].Id" value="@Model.Fields[i].Id" /></td>
-            <td>@Model.Fields[i].ExpectedValue</td>
-            <td><input name="Fields[@i].ActualValue" value="@Model.Fields[i].ActualValue" @(Model.CanEdit?"":"disabled") /></td>
-            <td><span class="match-indicator">@(Model.Fields[i].IsMatch?"Match":"Mismatch")</span></td>
-        </tr>
-    }
-    </tbody></table>
-    </section>
+@{
+    ViewData["Title"] = "PDF Comparison Screen";
+    ViewData["Subtitle"] = "Resolve mismatches with side-by-side evidence and submission controls.";
+}
+
+<section class="page-hero">
+    <div>
+        <h2>@Model.JobTitle</h2>
+        <p>Validate extracted fields against source PDF and clear blocking mismatches before submit.</p>
+    </div>
+    <div class="badge warning">Job #@Model.JobId</div>
+</section>
+
+<div class="card comparison-header">
+    <div>
+        <h3>Comparison Workspace</h3>
+        <p class="muted">Use layout controls to adapt the review experience for your screen.</p>
+    </div>
+    <div class="toolbar">
+        <select id="layoutSelect" style="width:auto;min-width:180px;">
+            <option value="side-by-side">Side by Side</option>
+            <option value="top-bottom">Top and Bottom</option>
+            <option value="bottom-top">Bottom and Top</option>
+            <option value="right-left">Right and Left</option>
+        </select>
+        <label class="checkbox-row compact-check">
+            <input id="mismatchOnlyToggle" type="checkbox" />
+            <span>Show mismatches only</span>
+        </label>
+        <button type="button" class="btn btn-ghost" id="nextMismatchBtn">Next Mismatch</button>
+        <button type="button" class="btn btn-secondary" onclick="refreshPdf()">Refresh PDF</button>
+    </div>
 </div>
-<div class="card footer-actions"><span>Mismatches: <strong id="mismatchCount">0</strong></span><button type="reset">Reset</button><button id="submitBtn" type="submit" @(Model.CanSubmit?"":"disabled")>Submit</button></div>
+
+<form asp-action="Submit" method="post" id="comparisonForm" class="grid">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="JobId" value="@Model.JobId" />
+
+    <div id="comparisonLayout" class="comparison-layout side-by-side">
+        <section class="card pdf-panel">
+            <iframe src="@Model.PdfUrl" class="pdf-frame" title="PDF Viewer"></iframe>
+        </section>
+
+        <section class="card form-panel">
+            <div class="panel-header sticky-panel-head">
+                <h3 class="card-title">Field Comparison Matrix</h3>
+                <div class="toolbar">
+                    <span class="badge neutral">@Model.Fields.Count fields</span>
+                    <span class="badge warning">Visible mismatches: <strong id="visibleMismatchCount">0</strong></span>
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Expected</th>
+                        <th>Actual</th>
+                        <th>Status</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @for (var i = 0; i < Model.Fields.Count; i++)
+                    {
+                        <tr class="comparison-row" data-expected="@Model.Fields[i].ExpectedValue" data-required="@Model.Fields[i].IsRequired.ToString().ToLower()" data-blocking="@Model.Fields[i].IsBlocking.ToString().ToLower()">
+                            <td>
+                                <strong>@Model.Fields[i].FieldLabel</strong>
+                                @if (Model.Fields[i].IsBlocking)
+                                {
+                                    <div><span class="badge danger">Blocking</span></div>
+                                }
+                                <input type="hidden" name="Fields[@i].Id" value="@Model.Fields[i].Id" />
+                            </td>
+                            <td>@Model.Fields[i].ExpectedValue</td>
+                            <td>
+                                <input name="Fields[@i].ActualValue" value="@Model.Fields[i].ActualValue" @(Model.CanEdit ? null : "disabled") />
+                            </td>
+                            <td>
+                                <span class="match-indicator @(Model.Fields[i].IsMatch ? "ok" : "bad")">@(Model.Fields[i].IsMatch ? "Match" : "Mismatch")</span>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <div class="card footer-actions">
+        <div>
+            <span class="field-label">Blocking mismatches</span>
+            <h3 id="mismatchCount">0</h3>
+        </div>
+        <div class="cta-group">
+            <button type="reset" class="btn btn-secondary">Reset</button>
+            <button id="submitBtn" type="submit" class="btn btn-primary" @(Model.CanSubmit ? null : "disabled")>Submit Review</button>
+        </div>
+    </div>
 </form>
-@section Scripts {<script>initComparisonScreen();</script>}

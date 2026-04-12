@@ -1,11 +1,256 @@
 @model DashboardVm
-@{ ViewData["Title"] = "Dashboard"; }
-<div class="grid stats-grid">
-    <div class="card stat"><h3>Total Users</h3><strong>@Model.TotalUsers</strong></div>
-    <div class="card stat"><h3>Active Users</h3><strong>@Model.ActiveUsers</strong></div>
-    <div class="card stat"><h3>Total Roles</h3><strong>@Model.TotalRoles</strong></div>
-    <div class="card stat"><h3>Comparison Jobs</h3><strong>@Model.TotalComparisonJobs</strong></div>
-    <div class="card stat"><h3>Pending Mismatches</h3><strong>@Model.PendingMismatches</strong></div>
-    <div class="card stat"><h3>Completed Submissions</h3><strong>@Model.CompletedSubmissions</strong></div>
+@{
+    ViewData["Title"] = "Dashboard";
+    ViewData["Subtitle"] = "Analytics overview";
+
+    var processedTotal = Model.CompletedSubmissions + Model.PendingMismatches;
+    var qualityRate = processedTotal > 0 ? (double)Model.CompletedSubmissions / processedTotal * 100 : 0;
+    var activeRate = Model.TotalUsers > 0 ? (double)Model.ActiveUsers / Model.TotalUsers * 100 : 0;
+    var completionRate = Model.TotalComparisonJobs > 0 ? (double)Model.CompletedSubmissions / Model.TotalComparisonJobs * 100 : 0;
+
+    var totalVolume = Math.Max(1, Model.CompletedSubmissions + Model.PendingMismatches + Model.ActiveUsers);
+    var completedShare = (double)Model.CompletedSubmissions / totalVolume * 100;
+    var pendingShare = (double)Model.PendingMismatches / totalVolume * 100;
+    var activeShare = (double)Model.ActiveUsers / totalVolume * 100;
+
+    var trendA = Math.Max(1, Model.TotalComparisonJobs / 4);
+    var trendB = Math.Max(1, Model.TotalComparisonJobs / 3);
+    var trendC = Math.Max(1, Model.TotalComparisonJobs / 2);
+    var trendD = Math.Max(1, Model.ActiveUsers + 2);
+    var trendE = Math.Max(1, Model.PendingMismatches + Model.ActiveUsers);
+    var trendF = Math.Max(1, Model.CompletedSubmissions);
+    var trendPoints = $"{trendA},{trendB},{trendC},{trendD},{trendE},{trendF}";
+
+    var segmentCompleted = $"{completedShare.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}|#4361ee";
+    var segmentPending = $"{pendingShare.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}|#ef4444";
+    var segmentActive = $"{activeShare.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}|#f59e0b";
+    var donutSegments = $"{segmentCompleted},{segmentPending},{segmentActive}";
+}
+
+<section class="analytics-hero">
+    <div class="analytics-crumbs">
+        <a asp-controller="Dashboard" asp-action="Index">Dashboard</a>
+        <span>/</span>
+        <strong>Analytics</strong>
+    </div>
+    <div class="analytics-title-row">
+        <div>
+            <h2>Operations Analytics</h2>
+            <p>Real-time overview for platform health, processing quality, and submission throughput.</p>
+        </div>
+        <span class="badge neutral">Live snapshot</span>
+    </div>
+</section>
+
+<section class="analytics-kpi-strip">
+    <article class="card analytics-kpi primary">
+        <div>
+            <p>Completed Submissions</p>
+            <strong>@Model.CompletedSubmissions.ToString("N0")</strong>
+        </div>
+        <span class="badge success">Healthy</span>
+    </article>
+    <article class="card analytics-kpi warning">
+        <div>
+            <p>Pending Mismatches</p>
+            <strong>@Model.PendingMismatches.ToString("N0")</strong>
+        </div>
+        <a asp-controller="ComparisonJobs" asp-action="Index" class="btn btn-secondary">Review Now</a>
+    </article>
+    <article class="card analytics-kpi info">
+        <div>
+            <p>Active User Ratio</p>
+            <strong>@activeRate.ToString("0.0")%</strong>
+        </div>
+        <a asp-controller="Users" asp-action="Index" class="btn btn-secondary">Open Users</a>
+    </article>
+</section>
+
+<div class="analytics-top-grid">
+    <section class="card analytics-panel">
+        <div class="analytics-panel-head">
+            <h3>Statistics</h3>
+            <span>This week</span>
+        </div>
+        <div class="analytics-stat-pair">
+            <article>
+                <p>Total Users</p>
+                <strong>@Model.TotalUsers.ToString("N0")</strong>
+                <div class="mini-bars">
+                    <span style="height: 9px"></span>
+                    <span style="height: 14px"></span>
+                    <span style="height: 17px"></span>
+                    <span style="height: 12px"></span>
+                    <span style="height: 19px"></span>
+                    <span style="height: 15px"></span>
+                </div>
+            </article>
+            <article>
+                <p>Active Accounts</p>
+                <strong>@Model.ActiveUsers.ToString("N0")</strong>
+                <div class="mini-bars mini-bars-secondary">
+                    <span style="height: 8px"></span>
+                    <span style="height: 12px"></span>
+                    <span style="height: 18px"></span>
+                    <span style="height: 10px"></span>
+                    <span style="height: 17px"></span>
+                    <span style="height: 20px"></span>
+                </div>
+            </article>
+        </div>
+    </section>
+
+    <section class="card analytics-panel">
+        <div class="analytics-panel-head">
+            <h3>Processing Load</h3>
+            <span>Current cycle</span>
+        </div>
+        <div class="analytics-highlight">
+            <strong>@Model.TotalComparisonJobs.ToString("N0")</strong>
+            <span>total comparison jobs</span>
+        </div>
+        <div class="analytics-progress-row">
+            <div class="analytics-progress-track">
+                <div class="analytics-progress-fill" style="width:@completionRate.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"></div>
+            </div>
+            <b>@completionRate.ToString("0.0")%</b>
+        </div>
+        <small>Completion rate based on submitted reports.</small>
+    </section>
+
+    <section class="analytics-balance-card">
+        <div class="analytics-balance-top">
+            <h3>Quality Score</h3>
+            <strong>@qualityRate.ToString("0.0")%</strong>
+        </div>
+        <p>Submission pass quality across reviewed mismatches.</p>
+        <div class="analytics-balance-actions">
+            <a asp-controller="ComparisonJobs" asp-action="Index" class="btn btn-secondary">Queue</a>
+            <a asp-controller="Reports" asp-action="Index" class="btn btn-secondary">Reports</a>
+        </div>
+    </section>
 </div>
-<div class="card"><h3>Recent Activity</h3><ul>@foreach (var activity in Model.RecentActivity){<li>@activity</li>}</ul></div>
+
+<div class="mobile-analytics-actions">
+    <button type="button" class="btn btn-secondary" data-mobile-analytics-toggle aria-expanded="true">Hide Extra Analytics</button>
+</div>
+
+<div class="analytics-secondary" data-mobile-analytics-panel>
+<div class="analytics-main-grid">
+    <section class="card analytics-panel analytics-wide">
+        <div class="analytics-panel-head">
+            <h3>Submission Trend</h3>
+            <span>Last 6 periods</span>
+        </div>
+        <div class="trend-chart trend-chart-svg">
+            <svg class="analytics-line-chart" data-points="@trendPoints" role="img" aria-label="Submission trend chart"></svg>
+        </div>
+        <div class="trend-meta">
+            <span>Completed: @Model.CompletedSubmissions.ToString("N0")</span>
+            <span>Pending: @Model.PendingMismatches.ToString("N0")</span>
+            <span>Active ratio: @activeRate.ToString("0.0")%</span>
+        </div>
+    </section>
+
+    <section class="card analytics-panel analytics-log">
+        <div class="analytics-panel-head">
+            <h3>Activity Log</h3>
+            <span>Latest events</span>
+        </div>
+        @if (Model.RecentActivity.Any())
+        {
+            <ul class="activity-log-list">
+                @foreach (var activity in Model.RecentActivity)
+                {
+                    <li>
+                        <span class="dot"></span>
+                        <div>
+                            <strong>@activity</strong>
+                            <small>System event</small>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <div class="empty-state analytics-empty">
+                <div class="empty-state-icon">AL</div>
+                <p>No activity logged yet.</p>
+                <div class="empty-actions">
+                    <a asp-controller="Audit" asp-action="Index" class="btn btn-secondary">Open Audit Logs</a>
+                </div>
+            </div>
+        }
+    </section>
+</div>
+
+<div class="analytics-bottom-grid">
+    <section class="card analytics-panel">
+        <div class="analytics-panel-head">
+            <h3>Workload Mix</h3>
+        </div>
+        <div class="analytics-donut-wrap">
+            <div class="analytics-donut" data-donut-segments="@donutSegments" aria-label="Workload distribution">
+                <strong>@qualityRate.ToString("0.0")%</strong>
+                <small>quality</small>
+            </div>
+            <div class="analytics-donut-legend">
+                <span><i style="background:#4361ee"></i>Completed</span>
+                <span><i style="background:#ef4444"></i>Pending</span>
+                <span><i style="background:#f59e0b"></i>Active users</span>
+            </div>
+        </div>
+
+        <div class="mix-row">
+            <span>Completed</span>
+            <b>@completedShare.ToString("0.0")%</b>
+        </div>
+        <div class="mix-track"><div class="mix-fill mix-fill-primary" style="width:@completedShare.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"></div></div>
+
+        <div class="mix-row">
+            <span>Pending</span>
+            <b>@pendingShare.ToString("0.0")%</b>
+        </div>
+        <div class="mix-track"><div class="mix-fill mix-fill-danger" style="width:@pendingShare.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"></div></div>
+
+        <div class="mix-row">
+            <span>Active Users</span>
+            <b>@activeShare.ToString("0.0")%</b>
+        </div>
+        <div class="mix-track"><div class="mix-fill mix-fill-warning" style="width:@activeShare.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"></div></div>
+    </section>
+
+    <section class="card analytics-mini-card">
+        <p>Total Users</p>
+        <strong>@Model.TotalUsers.ToString("N0")</strong>
+        <span>User directory size</span>
+    </section>
+
+    <section class="card analytics-mini-card">
+        <p>Total Roles</p>
+        <strong>@Model.TotalRoles.ToString("N0")</strong>
+        <span>Permission roles configured</span>
+    </section>
+
+    <section class="card analytics-mini-card">
+        <p>Jobs In Queue</p>
+        <strong>@Model.TotalComparisonJobs.ToString("N0")</strong>
+        <span>Tracked comparison jobs</span>
+    </section>
+</div>
+
+<section class="card analytics-panel quick-action-panel">
+    <div class="analytics-panel-head">
+        <h3>Quick Actions</h3>
+    </div>
+    <div class="quick-action-grid">
+        <a asp-controller="ComparisonJobs" asp-action="Index" class="btn btn-secondary">Open Comparison Queue</a>
+        <a asp-controller="Reports" asp-action="Index" class="btn btn-secondary">View Reports</a>
+        <a asp-controller="Users" asp-action="Index" class="btn btn-secondary">Manage Users</a>
+        <a asp-controller="Audit" asp-action="Index" class="btn btn-secondary">Review Audit Logs</a>
+        <a asp-controller="Roles" asp-action="Index" class="btn btn-secondary">Manage Roles</a>
+        <a asp-controller="Settings" asp-action="Index" class="btn btn-secondary">System Settings</a>
+    </div>
+</section>
+</div>

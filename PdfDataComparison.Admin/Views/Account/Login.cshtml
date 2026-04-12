@@ -1,15 +1,72 @@
 @model LoginVm
-@{ Layout = null; }
-<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="~/css/site.css"/></head>
-<body class="auth-body">
-<div class="auth-card">
-    <h2>Sign in</h2>
-    <form method="post">
-        @Html.AntiForgeryToken()
-        <label>Username<input asp-for="Username" /></label>
-        <label>Password<input asp-for="Password" type="password" /></label>
-        <label class="inline"><input asp-for="RememberMe" type="checkbox"/>Remember me</label>
-        <button type="submit" class="btn-primary">Login</button>
-    </form>
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Sign In";
+    ViewData["AuthVariant"] = "cover";
+    var rawReturnUrl = Context.Request.Query["returnUrl"].ToString();
+    var safeReturnUrl = string.IsNullOrWhiteSpace(rawReturnUrl) || rawReturnUrl.Contains("/account/logout", StringComparison.OrdinalIgnoreCase)
+        ? string.Empty
+        : rawReturnUrl;
+}
+
+<div class="auth-shell">
+    <section class="boxed-signin">
+        <header class="boxed-signin-brand">
+            <span class="brand-mark">MM</span>
+            <div>
+                <strong>Master Marine Services Pvt Ltd</strong>
+             
+            </div>
+        </header>
+
+        <div class="boxed-signin-head">
+            <h1>Sign in</h1>
+            <p>Enter your username and password to login.</p>
+        </div>
+
+        <form method="post" class="form-card boxed-signin-form">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="returnUrl" value="@safeReturnUrl" />
+
+            <div asp-validation-summary="ModelOnly" class="alert danger" role="alert" aria-live="assertive"></div>
+
+            <div class="form-group boxed-input">
+                <label asp-for="Username">Username</label>
+                <input asp-for="Username" placeholder="Enter your username" autocomplete="username" />
+                <span asp-validation-for="Username" class="field-validation-error"></span>
+            </div>
+
+            <div class="form-group password-row boxed-input">
+                <label asp-for="Password">Password</label>
+                <input asp-for="Password" id="loginPassword" type="password" placeholder="Enter your password" autocomplete="current-password" />
+                <button type="button" class="password-toggle" data-password-toggle="loginPassword">Show</button>
+                <span asp-validation-for="Password" class="field-validation-error"></span>
+            </div>
+
+            <div class="boxed-signin-actions">
+                <label class="checkbox-row">
+                    <input asp-for="RememberMe" type="checkbox" />
+                    <span>Remember me</span>
+                </label>
+                <a href="#" class="text-link">Forgot password?</a>
+            </div>
+
+            <button type="submit" class="btn btn-primary boxed-signin-submit">Sign In</button>
+
+            <div class="boxed-signin-social">
+                <span>or</span>
+                <div class="boxed-social-list">
+                    <button type="button" class="boxed-social-btn" aria-label="Sign in with Azure AD" disabled>A</button>
+                    <button type="button" class="boxed-social-btn" aria-label="Sign in with Google" disabled>G</button>
+                    <button type="button" class="boxed-social-btn" aria-label="Sign in with Microsoft" disabled>M</button>
+                    <button type="button" class="boxed-social-btn" aria-label="Sign in with Github" disabled>GH</button>
+                </div>
+            </div>
+
+            <p class="boxed-signin-footer">
+                Don't have an account?
+                <a href="#" class="text-link">Sign up</a>
+            </p>
+        </form>
+    </section>
 </div>
-</body></html>

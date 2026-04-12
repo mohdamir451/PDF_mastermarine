@@ -1,3 +1,26 @@
 @model PdfDataComparison.Admin.Domain.Entities.ComparisonSubmission
-@{ ViewData["Title"] = "Submission Details"; }
-<div class="card"><h3>Submission #@Model.Id</h3><p>Submitted: @Model.SubmittedAt.ToString("u")</p><a asp-controller="ComparisonJobs" asp-action="DownloadExcel" asp-route-submissionId="@Model.Id" class="btn-primary">Download Excel</a></div>
+@{
+    ViewData["Title"] = "Submission Details";
+    ViewData["Subtitle"] = "Inspect submission metadata and export artifacts.";
+}
+
+<section class="page-hero">
+    <div>
+        <h2>Submission #@Model.Id</h2>
+        <p>Submitted at @Model.SubmittedAt.ToString("u")</p>
+    </div>
+    <a asp-action="Index" class="btn btn-secondary">Back to Reports</a>
+</section>
+
+<section class="card">
+    <div class="kpi-row">
+        <div class="kpi"><span>Submission ID</span><strong>@Model.Id</strong></div>
+        <div class="kpi"><span>Job ID</span><strong>@Model.ComparisonJobId</strong></div>
+        <div class="kpi"><span>Submitted By</span><strong>@Model.SubmittedByUserId</strong></div>
+        <div class="kpi"><span>Submitted UTC</span><strong>@Model.SubmittedAt.ToString("yyyy-MM-dd")</strong></div>
+    </div>
+
+    <div class="toolbar" style="margin-top:16px;">
+        <a asp-controller="ComparisonJobs" asp-action="DownloadExcel" asp-route-submissionId="@Model.Id" class="btn btn-primary">Download Excel Export</a>
+    </div>
+</section>

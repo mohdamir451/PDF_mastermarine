@@ -1,0 +1,15 @@
+@{
+    var name = User.Identity?.Name ?? "User";
+}
+<div class="dropdown-card profile-dropdown" id="profileDropdown" hidden>
+    <div class="dropdown-head profile-head">
+        <div>
+            <h4>@name</h4>
+            <p>Enterprise Operator</p>
+        </div>
+    </div>
+    <ul class="dropdown-list">
+        <li><a asp-controller="Profile" asp-action="ChangePassword">Profile Settings</a></li>
+        <li><a asp-controller="Settings" asp-action="Index">Preferences</a></li>
+    </ul>
+</div>

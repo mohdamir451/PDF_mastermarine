@@ -1,17 +1,46 @@
-<header class="topbar">
-    <div>
-        <h1>@ViewData["Title"]</h1>
-        <p class="muted">Enterprise PDF Data Comparison Console</p>
+@{
+    var subtitle = ViewData["Subtitle"]?.ToString() ?? "Enterprise PDF Data Comparison Console";
+    var name = User.Identity?.Name ?? "User";
+    var initials = name.Length >= 2 ? name[..2].ToUpperInvariant() : name.ToUpperInvariant();
+}
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button type="button" class="icon-btn" id="sidebarToggle" aria-label="Toggle sidebar">
+            <svg viewBox="0 0 24 24" class="icon-svg"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+        </button>
+        @await Html.PartialAsync("_Breadcrumbs")
     </div>
-    <div class="topbar-actions">
-        <input type="text" placeholder="Search..." />
-        <div class="user-menu">
-            <span>@User.Identity?.Name</span>
-            <a asp-controller="Profile" asp-action="ChangePassword">Profile</a>
-            <form asp-controller="Account" asp-action="Logout" method="post">
-                @Html.AntiForgeryToken()
-                <button type="submit">Logout</button>
-            </form>
+
+    <div class="topbar-center">
+        <div class="global-search-wrap">
+            <label for="globalSearch" class="sr-only">Global search</label>
+            <input id="globalSearch" type="search" placeholder="Search jobs, users, roles, logs..." aria-label="Global search" />
         </div>
     </div>
+
+    <div class="topbar-actions">
+        <button type="button" class="icon-btn" aria-label="Messages" data-dropdown-target="messagesDropdown">
+            <svg viewBox="0 0 24 24" class="icon-svg"><path d="M2 4h20v14H6l-4 4V4zm2 2v11.17L5.17 16H20V6H4zm2 2h12v2H6zm0 4h8v2H6z"/></svg>
+        </button>
+        <button type="button" class="icon-btn" aria-label="Notifications" data-dropdown-target="notificationsDropdown">
+            <svg viewBox="0 0 24 24" class="icon-svg"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2z"/></svg>
+        </button>
+
+        <button type="button" class="user-chip" data-dropdown-target="profileDropdown" aria-label="Open profile menu">
+            <span class="user-avatar">@initials</span>
+            <span class="user-meta">
+                <strong>@name</strong>
+                <small>@subtitle</small>
+            </span>
+        </button>
+
+        <form asp-controller="Account" asp-action="Logout" method="post" data-confirm="Sign out of this workspace?">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-danger-soft">Logout</button>
+        </form>
+    </div>
+
+    @await Html.PartialAsync("_MessagesDropdown")
+    @await Html.PartialAsync("_NotificationsDropdown")
+    @await Html.PartialAsync("_ProfileDropdown")
 </header>

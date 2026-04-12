@@ -1,0 +1,18 @@
+@{
+    var crumbs = ViewData["Breadcrumbs"] as IEnumerable<string>;
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString() ?? "Home";
+    var action = ViewContext.RouteData.Values["action"]?.ToString() ?? "Index";
+    var fallback = new[] { "Admin", controller, action };
+    var list = (crumbs ?? fallback).ToList();
+}
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+    @for (var i = 0; i < list.Count; i++)
+    {
+        var isLast = i == list.Count - 1;
+        <span class="crumb @(isLast ? "current" : string.Empty)">@list[i]</span>
+        if (!isLast)
+        {
+            <span class="crumb-sep">/</span>
+        }
+    }
+</nav>

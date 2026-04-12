@@ -1,6 +1,50 @@
 @model List<PdfDataComparison.Admin.Domain.Entities.ApplicationRole>
-@{ ViewData["Title"] = "Role Management"; }
-<div class="card"><div class="toolbar"><a asp-action="Create" class="btn-primary">Create Role</a></div>
-<table class="table"><thead><tr><th>Role</th><th>Description</th><th>Actions</th></tr></thead><tbody>
-@foreach(var role in Model){<tr><td>@role.Name</td><td>@role.Description</td><td><a asp-action="Edit" asp-route-id="@role.Id">Edit</a></td></tr>}
-</tbody></table></div>
+@{
+    ViewData["Title"] = "Role Management";
+    ViewData["Subtitle"] = "Configure role definitions and governance coverage.";
+}
+
+<section class="page-hero">
+    <div>
+        <h2>Role Management</h2>
+        <p>Maintain responsibility groups and permission inheritance structure.</p>
+    </div>
+    <a asp-action="Create" class="btn btn-primary">Create Role</a>
+</section>
+
+<section class="card">
+    @if (Model.Any())
+    {
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>Role</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var role in Model)
+                {
+                    <tr>
+                        <td><strong>@role.Name</strong></td>
+                        <td>@role.Description</td>
+                        <td class="actions">
+                            <a asp-action="Edit" asp-route-id="@role.Id" class="btn btn-ghost">Edit</a>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <div class="empty-state-icon">RL</div>
+            <h3>No roles defined</h3>
+            <p>Create a role to start configuring permission governance.</p>
+        </div>
+    }
+</section>

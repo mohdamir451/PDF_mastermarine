@@ -1,21 +1,37 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-layout="vertical" data-theme="light" data-header="sticky" dir="ltr">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - PDF Data Comparison</title>
     <link rel="stylesheet" href="~/css/site.css" />
+    @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
-<div class="app-shell">
+<div class="app-shell" id="appShell">
     @await Html.PartialAsync("_Sidebar")
     <div class="main-panel">
         @await Html.PartialAsync("_Topbar")
-        <main class="content-wrapper">
+        <main class="content-wrapper" id="mainContent">
             @RenderBody()
         </main>
+        @await Html.PartialAsync("_Footer")
     </div>
 </div>
+
+@await Html.PartialAsync("_ThemeCustomizer")
+
+<div class="modal-backdrop" id="confirmModal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
+        <h3 id="confirmModalTitle">Confirm Action</h3>
+        <p id="confirmModalMessage">Are you sure you want to continue?</p>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" data-confirm-cancel>Cancel</button>
+            <button type="button" class="btn btn-primary" data-confirm-ok>Continue</button>
+        </div>
+    </div>
+</div>
+
 <script src="~/js/site.js"></script>
 @await RenderSectionAsync("Scripts", required: false)
 </body>

@@ -1,34 +1,88 @@
 @using PdfDataComparison.Admin.Domain.Entities
 @{
     ViewData["Title"] = "Page Permissions";
+    ViewData["Subtitle"] = "Review permission coverage by role and page.";
     var roles = ViewBag.Roles as List<ApplicationRole>;
     var pages = ViewBag.Pages as List<PagePermission>;
+    var selectedRoleId = ViewBag.SelectedRoleId as string;
+    var rolePermissions = ViewBag.RolePermissions as List<RolePermission> ?? new List<RolePermission>();
 }
-<div class="card">
-    <h3>Permissions Matrix</h3>
-    <form method="get" class="toolbar">
-        <select name="roleId">
-            @if (roles != null)
-            {
-                foreach (var r in roles)
+
+<section class="page-hero">
+    <div>
+        <h2>Permission Matrix</h2>
+        <p>Inspect page-level access coverage and operational controls for each role.</p>
+    </div>
+</section>
+
+<section class="card">
+    <form method="get" class="action-bar">
+        <div class="filter-bar">
+            <select name="roleId">
+                <option value="">Select a role</option>
+                @if (roles != null)
                 {
-                    <option value="@r.Id" selected="@(ViewBag.SelectedRoleId == r.Id)">@r.Name</option>
+                    foreach (var role in roles)
+                    {
+                        <option value="@role.Id" selected="@(selectedRoleId == role.Id)">@role.Name</option>
+                    }
                 }
-            }
-        </select>
-        <button type="submit">Load</button>
+            </select>
+            <button type="submit" class="btn btn-primary">Load Matrix</button>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(selectedRoleId))
+        {
+            <span class="badge neutral">@rolePermissions.Count rows with assigned permissions</span>
+        }
     </form>
 
-    <table class="table">
-        <thead><tr><th>Page</th><th>Permission Key</th></tr></thead>
-        <tbody>
-        @if (pages != null)
-        {
-            foreach (var p in pages)
-            {
-                <tr><td>@p.PageName</td><td>@p.PermissionKey</td></tr>
-            }
-        }
-        </tbody>
-    </table>
-</div>
+    @if (pages != null && pages.Any())
+    {
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>Page</th>
+                    <th>Permission Key</th>
+                    <th>Capabilities</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var permissionPage in pages)
+                {
+                    var permissions = rolePermissions.FirstOrDefault(x => x.PagePermissionId == permissionPage.Id);
+                    <tr>
+                        <td><strong>@permissionPage.PageName</strong></td>
+                        <td>@permissionPage.PermissionKey</td>
+                        <td>
+                            @if (permissions == null)
+                            {
+                                <span class="badge danger">No Access</span>
+                            }
+                            else
+                            {
+                                <div class="toolbar">
+                                    @if (permissions.CanView) { <span class="badge neutral">View</span> }
+                                    @if (permissions.CanCreate) { <span class="badge success">Create</span> }
+                                    @if (permissions.CanEdit) { <span class="badge warning">Edit</span> }
+                                    @if (permissions.CanDelete) { <span class="badge danger">Delete</span> }
+                                    @if (permissions.CanSubmit) { <span class="badge success">Submit</span> }
+                                    @if (permissions.CanExport) { <span class="badge neutral">Export</span> }
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <div class="empty-state-icon">PM</div>
+            <h3>No permission pages configured</h3>
+            <p>Seed permissions to populate this matrix.</p>
+        </div>
+    }
+</section>

@@ -21,12 +21,15 @@ public class PermissionService(
         var user = await userManager.FindByIdAsync(userId);
         if (user == null) return Array.Empty<string>();
 
-        var roleNames = await userManager.GetRolesAsync(user);
-        var roleIds = await dbContext.Roles.Where(r => roleNames.Contains(r.Name!)).Select(r => r.Id).ToListAsync();
-
-        return await dbContext.RolePermissions
-            .Where(rp => roleIds.Contains(rp.RoleId) && rp.CanView)
-            .Select(rp => rp.PagePermission!.PermissionKey)
+        // Keep the full query server-side with joins so it works across older
+        // SQL Server compatibility levels (avoids OPENJSON translation).
+        return await (
+            from ur in dbContext.UserRoles
+            join rp in dbContext.RolePermissions on ur.RoleId equals rp.RoleId
+            join pp in dbContext.PagePermissions on rp.PagePermissionId equals pp.Id
+            where ur.UserId == userId && rp.CanView
+            select pp.PermissionKey
+        )
             .Distinct()
             .ToListAsync();
     }

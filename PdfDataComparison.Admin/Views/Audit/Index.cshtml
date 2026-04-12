@@ -1,5 +1,69 @@
 @model List<PdfDataComparison.Admin.Domain.Entities.AuditLog>
-@{ ViewData["Title"] = "Audit Logs"; }
-<div class="card"><table class="table"><thead><tr><th>Action</th><th>By</th><th>Target</th><th>Timestamp</th><th>Notes</th></tr></thead><tbody>
-@foreach(var log in Model){<tr><td>@log.Action</td><td>@log.PerformedByName</td><td>@log.TargetEntity</td><td>@log.Timestamp.ToString("u")</td><td>@log.Notes</td></tr>}
-</tbody></table></div>
+@{
+    ViewData["Title"] = "Audit Logs";
+    ViewData["Subtitle"] = "Chronological system activity for compliance and traceability.";
+}
+
+<section class="page-hero">
+    <div>
+        <h2>Audit Logs</h2>
+        <p>Review who performed what action and when across the workspace.</p>
+    </div>
+    <span class="badge neutral">Last @Model.Count records</span>
+</section>
+
+<section class="card">
+    <div class="table-tools">
+        <label for="auditQuickFilter" class="sr-only">Quick filter loaded rows</label>
+        <input id="auditQuickFilter" class="table-quick-filter" type="search" placeholder="Quick filter visible rows" data-table-search data-table-target="auditTable" data-table-count-target="auditVisibleCount" />
+        <span class="badge neutral visible-count" id="auditVisibleCount" aria-live="polite">0/0</span>
+        <button type="button" class="btn btn-ghost" data-density-target="auditTableWrap" aria-pressed="false">Compact Rows</button>
+    </div>
+
+    <div class="loading-panel" data-loading-panel>
+        <div class="skeleton-row"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>
+        <div class="skeleton-row"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>
+    </div>
+
+    <div class="data-panel" data-data-panel hidden>
+        @if (Model.Any())
+        {
+            <div class="table-wrap" id="auditTableWrap">
+                <table class="table" id="auditTable" data-sortable>
+                <thead>
+                <tr>
+                    <th><button type="button" class="sort-btn" data-sort-col="0">Action</button></th>
+                    <th><button type="button" class="sort-btn" data-sort-col="1">Performed By</button></th>
+                    <th><button type="button" class="sort-btn" data-sort-col="2">Target</button></th>
+                    <th><button type="button" class="sort-btn" data-sort-col="3">Timestamp (UTC)</button></th>
+                    <th><button type="button" class="sort-btn" data-sort-col="4">Notes</button></th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var log in Model)
+                {
+                    <tr>
+                        <td><span class="badge neutral">@log.Action</span></td>
+                        <td>@log.PerformedByName</td>
+                        <td>@log.TargetEntity</td>
+                        <td>@log.Timestamp.ToString("u")</td>
+                        <td>@(string.IsNullOrWhiteSpace(log.Notes) ? "-" : log.Notes)</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <div class="empty-state-icon">AL</div>
+                <h3>No audit events yet</h3>
+                <p>Audit events will appear after users start interacting with the platform.</p>
+                <div class="empty-actions">
+                    <a asp-controller="Users" asp-action="Index" class="btn btn-secondary">Manage Users</a>
+                </div>
+            </div>
+        }
+    </div>
+</section>

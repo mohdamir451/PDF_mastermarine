@@ -1,18 +1,117 @@
 @model PagedResult<UserListItemVm>
-@{ ViewData["Title"] = "User Management"; }
-<div class="card">
-    <div class="toolbar"><a asp-action="Create" class="btn-primary">Create User</a></div>
-    <table class="table">
-        <thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Status</th><th>Roles</th><th>Actions</th></tr></thead>
-        <tbody>
-        @foreach(var user in Model.Items){
-            <tr>
-                <td>@user.FullName</td><td>@user.Email</td><td>@user.Department</td>
-                <td><span class="badge @(user.IsActive?"success":"danger")">@(user.IsActive?"Active":"Inactive")</span></td>
-                <td>@string.Join(", ", user.Roles)</td>
-                <td><a asp-action="Edit" asp-route-id="@user.Id">Edit</a></td>
-            </tr>
+@{
+    ViewData["Title"] = "User Management";
+    ViewData["Subtitle"] = "Manage enterprise users, departments, and account status.";
+    var searchQuery = Context.Request.Query["search"].ToString();
+    var hasServerFilter = !string.IsNullOrWhiteSpace(searchQuery);
+}
+
+<section class="page-hero">
+    <div>
+        <h2>User Management</h2>
+        <p>Control account access, role coverage, and user lifecycle visibility.</p>
+    </div>
+    <a asp-action="Create" class="btn btn-primary">Create User</a>
+</section>
+
+<section class="card">
+    <form method="get" class="action-bar">
+        <div class="filter-bar">
+            <label for="usersSearch" class="sr-only">Search users</label>
+            <input id="usersSearch" type="search" name="search" value="@searchQuery" placeholder="Search by name, email, or department" aria-label="Search users" />
+            <button type="submit" class="btn btn-secondary">Search</button>
+            <a asp-action="Index" class="btn btn-ghost">Reset</a>
+        </div>
+        <div class="table-tools">
+            @if (hasServerFilter)
+            {
+                <span class="active-filter-chip">Filter: @searchQuery</span>
+            }
+            <label for="usersQuickFilter" class="sr-only">Quick filter loaded rows</label>
+            <input id="usersQuickFilter" class="table-quick-filter" type="search" placeholder="Quick filter visible rows" data-table-search data-table-target="usersTable" data-table-count-target="usersVisibleCount" />
+            <span class="badge neutral visible-count" id="usersVisibleCount" aria-live="polite">0/0</span>
+            <button type="button" class="btn btn-ghost" data-density-target="usersTableWrap" aria-pressed="false">Compact Rows</button>
+            <span class="badge neutral">@Model.TotalCount total users</span>
+        </div>
+    </form>
+
+    <div class="loading-panel" data-loading-panel>
+        <div class="skeleton-row"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>
+        <div class="skeleton-row"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>
+    </div>
+
+    <div class="data-panel" data-data-panel hidden>
+        @if (Model.Items.Any())
+        {
+            <div class="table-wrap" id="usersTableWrap">
+                <table class="table" id="usersTable" data-sortable>
+                <thead>
+                <tr>
+                    <th><button type="button" class="sort-btn" data-sort-col="0">Name</button></th>
+                    <th><button type="button" class="sort-btn" data-sort-col="1">Email</button></th>
+                    <th><button type="button" class="sort-btn" data-sort-col="2">Department</button></th>
+                    <th><button type="button" class="sort-btn" data-sort-col="3">Status</button></th>
+                    <th><button type="button" class="sort-btn" data-sort-col="4">Roles</button></th>
+                    <th><button type="button" class="sort-btn" data-sort-col="5">Last Login</button></th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var user in Model.Items)
+                {
+                    <tr>
+                        <td>
+                            <strong>@user.FullName</strong>
+                        </td>
+                        <td>@user.Email</td>
+                        <td>@user.Department</td>
+                        <td>
+                            <span class="badge @(user.IsActive ? "success" : "danger") status-chip">@(user.IsActive ? "Active" : "Inactive")</span>
+                        </td>
+                        <td>@string.Join(", ", user.Roles)</td>
+                        <td>@(user.LastLoginAt?.ToString("yyyy-MM-dd HH:mm") ?? "Never")</td>
+                        <td class="actions">
+                            <details class="row-menu">
+                                <summary>Actions</summary>
+                                <div class="row-menu-list">
+                                    <a asp-action="Edit" asp-route-id="@user.Id">Edit User</a>
+                                </div>
+                            </details>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+
+            @if (Model.TotalPages > 1)
+            {
+                <nav class="pagination" aria-label="User pages">
+                    @for (var i = 1; i <= Model.TotalPages; i++)
+                    {
+                        if (i == Model.Page)
+                        {
+                            <span class="active">@i</span>
+                        }
+                        else
+                        {
+                            <a asp-action="Index" asp-route-page="@i" asp-route-search="@searchQuery">@i</a>
+                        }
+                    }
+                </nav>
+            }
         }
-        </tbody>
-    </table>
-</div>
+        else
+        {
+            <div class="empty-state">
+                <div class="empty-state-icon">US</div>
+                <h3>No users found</h3>
+                <p>No accounts matched the current filters.</p>
+                <div class="empty-actions">
+                    <a asp-action="Create" class="btn btn-primary">Create User</a>
+                    <a asp-action="Index" class="btn btn-ghost">Clear Filters</a>
+                </div>
+            </div>
+        }
+    </div>
+</section>

@@ -1,5 +1,799 @@
 @model PagedResult<ComparisonJobListItemVm>
-@{ ViewData["Title"] = "PDF Comparison Jobs"; }
-<div class="card"><table class="table"><thead><tr><th>Job</th><th>Title</th><th>Status</th><th>Date</th><th></th></tr></thead><tbody>
-@foreach(var j in Model.Items){<tr><td>@j.JobNumber</td><td>@j.Title</td><td><span class="badge">@j.Status</span></td><td>@j.CreatedAt.ToString("yyyy-MM-dd")</td><td><a asp-action="Screen" asp-route-id="@j.Id">Open</a></td></tr>}
-</tbody></table></div>
+@{
+    ViewData["Title"] = "PDF Comparison Jobs";
+    ViewData["Subtitle"] = "Track job intake, status, and comparison readiness.";
+    var searchQuery = Context.Request.Query["search"].ToString();
+    var hasServerFilter = !string.IsNullOrWhiteSpace(searchQuery);
+}
+
+<section class="page-hero">
+    <div>
+        <h2>PDF Comparison Jobs</h2>
+        <p>Review queue status, open jobs, and continue field-by-field validation workflows.</p>
+    </div>
+    <span class="badge neutral">@Model.TotalCount tracked jobs</span>
+</section>
+
+<section class="card" id="pdfCompareSection">
+    <h3 class="card-title">PDF API Compare</h3>
+    <p class="form-help">Upload a PDF, send it to your API for extraction, then compare API values with PDF values.</p>
+
+    <div id="pdfUploadPanel">
+        <form id="pdfCompareForm" class="grid" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <div class="form-group">
+                <label for="pdfFileInput">PDF File</label>
+                <input id="pdfFileInput" name="pdfFile" type="file" accept="application/pdf,.pdf" required />
+            </div>
+
+            <div class="action-bar">
+                <div class="table-tools">
+                    <button type="submit" class="btn btn-primary" id="pdfCompareSubmitBtn">Upload & Compare</button>
+                    <span class="badge neutral" id="pdfCompareStatus">Waiting for upload</span>
+                </div>
+                <div class="table-tools">
+                    <span class="badge success" id="matchCountBadge" hidden>Matches: 0</span>
+                    <span class="badge danger" id="mismatchCountBadge" hidden>Mismatches: 0</span>
+                </div>
+            </div>
+        </form>
+
+        <div class="alert warning" id="pdfCompareError" hidden></div>
+    </div>
+
+    <div id="pdfCompareResult" hidden>
+        <div class="card">
+            <div class="action-bar">
+                <div>
+                    <h3>Comparison Workspace</h3>
+                    <p class="form-help">Use layout controls and mismatch filters while reviewing extracted fields.</p>
+                </div>
+                <div class="toolbar">
+                    <select id="layoutSelect" style="width:auto;min-width:180px;">
+                        <option value="side-by-side">Side by Side</option>
+                        <option value="top-bottom">Top and Bottom</option>
+                        <option value="bottom-top">Bottom and Top</option>
+                        <option value="right-left">Right and Left</option>
+                    </select>
+                    <label class="checkbox-row compact-check">
+                        <input id="mismatchOnlyToggle" type="checkbox" />
+                        <span>Show mismatches only</span>
+                    </label>
+                    <button type="button" class="btn btn-secondary" id="openPdfModalBtn">PDF Popup</button>
+                    <button type="button" class="btn btn-secondary" id="openMatrixModalBtn">Matrix Popup</button>
+                    <button type="button" class="btn btn-ghost" id="nextMismatchBtn">Next Mismatch</button>
+                    <button type="button" class="btn btn-secondary" onclick="refreshPdf()">Refresh PDF</button>
+                    <button type="button" class="btn btn-secondary" id="uploadAnotherPdfBtn">Upload Another PDF</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="comparisonLayout" class="comparison-layout side-by-side">
+            <div class="card pdf-panel">
+                <iframe id="uploadedPdfFrame" class="pdf-frame" title="Uploaded PDF preview"></iframe>
+            </div>
+
+            <div class="card">
+                <div class="panel-header sticky-panel-head">
+                    <h3 class="card-title">Field Comparison Matrix</h3>
+                    <div class="toolbar">
+                        <input id="matrixSearchInput" type="search" placeholder="Search fields..." style="width:auto;min-width:210px;" />
+                        <span class="badge neutral" id="matrixFieldCount">0 fields</span>
+                        <span class="badge success" id="matchCountBadgeResult">Matches: 0</span>
+                        <span class="badge warning">Visible mismatches: <strong id="visibleMismatchCount">0</strong></span>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table class="table" id="pdfCompareTable">
+                        <thead>
+                            <tr>
+                                <th>Field</th>
+                                <th>Expected (API)</th>
+                                <th>Actual (PDF)</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pdfCompareTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card footer-actions">
+            <div>
+                <span class="field-label">Blocking mismatches</span>
+                <h3 id="mismatchCount">0</h3>
+            </div>
+            <div class="cta-group">
+                <span class="badge danger" id="mismatchCountBadgeResult">Mismatches: 0</span>
+                <button type="button" class="btn btn-primary" id="indexSubmitBtn" hidden>Submit & Download Excel</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="card">
+    <form method="get" class="action-bar">
+        <div class="filter-bar">
+            <label for="jobsSearch" class="sr-only">Search comparison jobs</label>
+            <input id="jobsSearch" type="search" name="search" value="@searchQuery" placeholder="Search by job number or title" aria-label="Search comparison jobs" />
+            <button type="submit" class="btn btn-secondary">Search</button>
+            <a asp-action="Index" class="btn btn-ghost">Reset</a>
+        </div>
+        <div class="table-tools">
+            @if (hasServerFilter)
+            {
+                <span class="active-filter-chip">Filter: @searchQuery</span>
+            }
+            <label for="jobsQuickFilter" class="sr-only">Quick filter loaded rows</label>
+            <input id="jobsQuickFilter" class="table-quick-filter" type="search" placeholder="Quick filter visible rows" data-table-search data-table-target="jobsTable" data-table-count-target="jobsVisibleCount" />
+            <span class="badge neutral visible-count" id="jobsVisibleCount" aria-live="polite">0/0</span>
+            <button type="button" class="btn btn-ghost" data-density-target="jobsTableWrap" aria-pressed="false">Compact Rows</button>
+        </div>
+    </form>
+
+    <div class="loading-panel" data-loading-panel>
+        <div class="skeleton-row"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>
+        <div class="skeleton-row"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>
+    </div>
+
+    <div class="data-panel" data-data-panel hidden>
+        @if (Model.Items.Any())
+        {
+            <div class="table-wrap" id="jobsTableWrap">
+                <table class="table" id="jobsTable" data-sortable>
+                <thead>
+                <tr>
+                    <th><button type="button" class="sort-btn" data-sort-col="0">Job</button></th>
+                    <th><button type="button" class="sort-btn" data-sort-col="1">Title</button></th>
+                    <th><button type="button" class="sort-btn" data-sort-col="2">Status</button></th>
+                    <th><button type="button" class="sort-btn" data-sort-col="3">Created</button></th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var job in Model.Items)
+                {
+                    var statusClass = job.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase)
+                        ? "success"
+                        : job.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase)
+                            ? "warning"
+                            : job.Status.Equals("In Progress", StringComparison.OrdinalIgnoreCase)
+                                ? "info"
+                                : job.Status.Equals("Failed", StringComparison.OrdinalIgnoreCase) || job.Status.Equals("Rejected", StringComparison.OrdinalIgnoreCase)
+                                    ? "danger"
+                                    : "neutral";
+                    <tr>
+                        <td><strong>@job.JobNumber</strong></td>
+                        <td>@job.Title</td>
+                        <td><span class="badge @statusClass">@job.Status</span></td>
+                        <td>@job.CreatedAt.ToString("yyyy-MM-dd")</td>
+                        <td class="actions">
+                            <details class="row-menu">
+                                <summary>Actions</summary>
+                                <div class="row-menu-list">
+                                    <a asp-action="Screen" asp-route-id="@job.Id">Open Job</a>
+                                </div>
+                            </details>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+
+            @if (Model.TotalPages > 1)
+            {
+                <nav class="pagination" aria-label="Comparison job pages">
+                    @for (var i = 1; i <= Model.TotalPages; i++)
+                    {
+                        if (i == Model.Page)
+                        {
+                            <span class="active">@i</span>
+                        }
+                        else
+                        {
+                            <a asp-action="Index" asp-route-page="@i" asp-route-search="@searchQuery">@i</a>
+                        }
+                    }
+                </nav>
+            }
+        }
+        else
+        {
+            <div class="empty-state">
+                <div class="empty-state-icon">CP</div>
+                <h3>No jobs in queue</h3>
+                <p>No comparison jobs matched the current filter.</p>
+                <div class="empty-actions">
+                    <a asp-action="Index" class="btn btn-ghost">Reset Filters</a>
+                    <a asp-controller="Reports" asp-action="Index" class="btn btn-secondary">View Reports</a>
+                </div>
+            </div>
+        }
+    </div>
+</section>
+
+<div class="modal-backdrop compare-modal-backdrop" id="pdfPreviewModal" aria-hidden="true">
+    <div class="modal-card compare-modal-card">
+        <div class="compare-modal-head">
+            <h3>PDF Preview</h3>
+            <button type="button" class="btn btn-ghost btn-small" data-close-modal="pdfPreviewModal">Close</button>
+        </div>
+        <div class="compare-modal-body pdf-modal-body">
+            <iframe id="pdfPreviewModalFrame" class="compare-modal-pdf-frame" title="PDF Preview Popup"></iframe>
+        </div>
+    </div>
+</div>
+
+<div class="modal-backdrop compare-modal-backdrop" id="matrixPreviewModal" aria-hidden="true">
+    <div class="modal-card compare-modal-card compare-modal-card-wide">
+        <div class="compare-modal-head">
+            <h3>Field Comparison Matrix</h3>
+            <button type="button" class="btn btn-ghost btn-small" data-close-modal="matrixPreviewModal">Close</button>
+        </div>
+        <div class="compare-modal-body">
+            <div class="table-wrap" id="matrixPreviewTableWrap"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    #pdfCompareTable td {
+        vertical-align: top;
+    }
+
+    #comparisonLayout.side-by-side,
+    #comparisonLayout.right-left {
+        align-items: stretch;
+    }
+
+    #comparisonLayout.side-by-side .pdf-panel,
+    #comparisonLayout.right-left .pdf-panel {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #comparisonLayout.side-by-side .pdf-frame,
+    #comparisonLayout.right-left .pdf-frame {
+        flex: 1 1 auto;
+        height: 100%;
+        min-height: 650px;
+    }
+
+    #pdfCompareTable .compare-actual-input {
+        width: 100%;
+        min-width: 260px;
+        min-height: 74px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #fff;
+        color: var(--text);
+        line-height: 1.4;
+        font-size: 13px;
+        resize: vertical;
+    }
+
+    #pdfCompareTable .compare-actual-input.is-readonly {
+        background: #f8fafc;
+        color: #64748b;
+        cursor: not-allowed;
+    }
+
+    html[data-theme="dark"] #pdfCompareTable .compare-actual-input {
+        background: #121a2d;
+        color: var(--text);
+        border-color: var(--border);
+    }
+
+    html[data-theme="dark"] #pdfCompareTable .compare-actual-input.is-readonly {
+        background: #111a2b;
+        color: #93a4c2;
+    }
+
+    .compare-modal-card {
+        width: min(1100px, calc(100vw - 48px));
+        max-height: calc(100vh - 52px);
+        padding: 14px;
+    }
+
+    .compare-modal-card-wide {
+        width: min(1320px, calc(100vw - 42px));
+    }
+
+    .compare-modal-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .compare-modal-head h3 {
+        color: var(--title);
+        font-size: 18px;
+    }
+
+    .compare-modal-body {
+        overflow: auto;
+        max-height: calc(100vh - 150px);
+    }
+
+    .pdf-modal-body {
+        min-height: 72vh;
+    }
+
+    .compare-modal-pdf-frame {
+        width: 100%;
+        height: 72vh;
+        border: 1px solid #dbeafe;
+        border-radius: 10px;
+        background: #f8fafc;
+    }
+
+    #matrixPreviewTableWrap .compare-actual-input {
+        min-height: 84px;
+    }
+
+    #matrixPreviewTableWrap {
+        max-height: calc(100vh - 180px);
+        overflow: auto;
+    }
+
+    #matrixPreviewTableWrap .table {
+        min-width: 900px;
+        table-layout: fixed;
+    }
+
+    #matrixPreviewTableWrap .table th:nth-child(1),
+    #matrixPreviewTableWrap .table td:nth-child(1) {
+        width: 18%;
+    }
+
+    #matrixPreviewTableWrap .table th:nth-child(2),
+    #matrixPreviewTableWrap .table td:nth-child(2) {
+        width: 34%;
+    }
+
+    #matrixPreviewTableWrap .table th:nth-child(3),
+    #matrixPreviewTableWrap .table td:nth-child(3) {
+        width: 34%;
+    }
+
+    #matrixPreviewTableWrap .table th:nth-child(4),
+    #matrixPreviewTableWrap .table td:nth-child(4) {
+        width: 14%;
+    }
+
+    #matrixPreviewTableWrap .compare-actual-input.is-readonly {
+        color: var(--text);
+        background: #fff;
+    }
+
+    html[data-theme="dark"] #matrixPreviewTableWrap .compare-actual-input.is-readonly {
+        background: #121a2d;
+        color: var(--text);
+    }
+</style>
+
+<script>
+(() => {
+    window.addEventListener('load', () => {
+        document.body.classList.add('sidebar-collapsed');
+    });
+
+    const form = document.getElementById('pdfCompareForm');
+    if (!form) return;
+
+    const fileInput = document.getElementById('pdfFileInput');
+    const uploadPanel = document.getElementById('pdfUploadPanel');
+    const submitBtn = document.getElementById('pdfCompareSubmitBtn');
+    const statusBadge = document.getElementById('pdfCompareStatus');
+    const errorBox = document.getElementById('pdfCompareError');
+    const resultWrap = document.getElementById('pdfCompareResult');
+    const pdfFrame = document.getElementById('uploadedPdfFrame');
+    const body = document.getElementById('pdfCompareTableBody');
+    const matchBadge = document.getElementById('matchCountBadge');
+    const mismatchBadge = document.getElementById('mismatchCountBadge');
+    const matchBadgeResult = document.getElementById('matchCountBadgeResult');
+    const mismatchBadgeResult = document.getElementById('mismatchCountBadgeResult');
+    const matrixFieldCount = document.getElementById('matrixFieldCount');
+    const visibleMismatchCount = document.getElementById('visibleMismatchCount');
+    const mismatchCount = document.getElementById('mismatchCount');
+    const indexSubmitBtn = document.getElementById('indexSubmitBtn');
+    const layoutSelect = document.getElementById('layoutSelect');
+    const comparisonLayout = document.getElementById('comparisonLayout');
+    const mismatchOnlyToggle = document.getElementById('mismatchOnlyToggle');
+    const nextMismatchBtn = document.getElementById('nextMismatchBtn');
+    const matrixSearchInput = document.getElementById('matrixSearchInput');
+    const uploadAnotherBtn = document.getElementById('uploadAnotherPdfBtn');
+    const openPdfModalBtn = document.getElementById('openPdfModalBtn');
+    const openMatrixModalBtn = document.getElementById('openMatrixModalBtn');
+    const pdfPreviewModal = document.getElementById('pdfPreviewModal');
+    const matrixPreviewModal = document.getElementById('matrixPreviewModal');
+    const pdfPreviewModalFrame = document.getElementById('pdfPreviewModalFrame');
+    const matrixPreviewTableWrap = document.getElementById('matrixPreviewTableWrap');
+
+    let matrixRows = [];
+    let currentSourceFileName = '';
+
+    const normalizeValue = (value) => (value ?? '').toString().trim().toLowerCase();
+
+    const setStatus = (text, cls = 'neutral') => {
+        statusBadge.textContent = text;
+        statusBadge.className = `badge ${cls}`;
+    };
+
+    const showError = (text) => {
+        errorBox.hidden = false;
+        errorBox.textContent = text;
+    };
+
+    const clearError = () => {
+        errorBox.hidden = true;
+        errorBox.textContent = '';
+    };
+
+    const setSubmitAvailability = (isEnabled) => {
+        if (!indexSubmitBtn) return;
+        indexSubmitBtn.hidden = !isEnabled;
+        indexSubmitBtn.disabled = !isEnabled;
+    };
+
+    const openModal = (modal) => {
+        if (!modal) return;
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+    };
+
+    const closeModal = (modal) => {
+        if (!modal) return;
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+    };
+
+    const cloneMatrixForModal = () => {
+        if (!matrixPreviewTableWrap) return;
+        matrixPreviewTableWrap.innerHTML = '';
+        const sourceTable = document.getElementById('pdfCompareTable');
+        if (!sourceTable) return;
+
+        const clonedTable = sourceTable.cloneNode(true);
+        clonedTable.removeAttribute('id');
+        clonedTable.querySelectorAll('[id]').forEach((element) => element.removeAttribute('id'));
+
+        const sourceInputs = Array.from(sourceTable.querySelectorAll('[data-actual-input]'));
+        const clonedInputs = Array.from(clonedTable.querySelectorAll('[data-actual-input]'));
+        clonedInputs.forEach((input, index) => {
+            const sourceValue = sourceInputs[index] ? sourceInputs[index].value : input.value;
+            input.value = sourceValue || '';
+            if (input.tagName === 'TEXTAREA') {
+                input.textContent = sourceValue || '';
+            }
+            input.readOnly = true;
+            input.classList.add('is-readonly');
+        });
+
+        matrixPreviewTableWrap.appendChild(clonedTable);
+    };
+
+    const renderRows = (rows) => {
+        body.innerHTML = '';
+        matrixRows = [];
+        rows.forEach((row) => {
+            const tr = document.createElement('tr');
+            tr.className = 'comparison-row';
+            tr.dataset.expected = (row.apiValue ?? '').toString();
+            tr.dataset.blocking = (!row.isMatch).toString().toLowerCase();
+
+            const tdField = document.createElement('td');
+            const strong = document.createElement('strong');
+            strong.textContent = (row.field || '').toString();
+            tdField.appendChild(strong);
+
+            const tdApi = document.createElement('td');
+            tdApi.textContent = (row.apiValue ?? '').toString();
+
+            const tdPdf = document.createElement('td');
+            const pdfInput = document.createElement('textarea');
+            pdfInput.rows = 2;
+            pdfInput.className = 'compare-actual-input';
+            pdfInput.value = (row.pdfValue ?? '').toString();
+            pdfInput.setAttribute('data-actual-input', 'true');
+            pdfInput.setAttribute('spellcheck', 'false');
+            tdPdf.appendChild(pdfInput);
+
+            const tdMatch = document.createElement('td');
+            const indicator = document.createElement('span');
+            indicator.className = `match-indicator ${row.isMatch ? 'ok' : 'bad'}`;
+            indicator.textContent = row.isMatch ? 'Match' : 'Mismatch';
+            tdMatch.appendChild(indicator);
+
+            tr.appendChild(tdField);
+            tr.appendChild(tdApi);
+            tr.appendChild(tdPdf);
+            tr.appendChild(tdMatch);
+            body.appendChild(tr);
+            matrixRows.push(tr);
+        });
+
+        if (matrixFieldCount) matrixFieldCount.textContent = `${matrixRows.length} fields`;
+    };
+
+    const evaluateMatrix = () => {
+        const mismatchOnly = mismatchOnlyToggle ? mismatchOnlyToggle.checked : false;
+        const query = (matrixSearchInput && matrixSearchInput.value ? matrixSearchInput.value : '').trim().toLowerCase();
+        let mismatches = 0;
+        let visibleMismatches = 0;
+        const mismatchRows = [];
+
+        matrixRows.forEach((row) => {
+            const expected = normalizeValue(row.dataset.expected);
+            const input = row.querySelector('[data-actual-input]');
+            const actual = normalizeValue(input && input.value ? input.value : '');
+            const indicator = row.querySelector('.match-indicator');
+            const isMatch = expected === actual;
+            const matchesQuery = !query || row.innerText.toLowerCase().includes(query);
+
+            row.classList.toggle('mismatch-row', !isMatch);
+            row.classList.toggle('hidden-by-filter', !matchesQuery || (mismatchOnly && isMatch));
+
+            if (!isMatch) {
+                mismatches += 1;
+                mismatchRows.push(row);
+                if (!row.classList.contains('hidden-by-filter')) visibleMismatches += 1;
+            }
+
+            if (indicator) {
+                indicator.textContent = isMatch ? 'Match' : 'Mismatch';
+                indicator.className = `match-indicator ${isMatch ? 'ok' : 'bad'}`;
+            }
+
+            if (input) {
+                input.readOnly = isMatch;
+                input.classList.toggle('is-readonly', isMatch);
+            }
+        });
+
+        if (visibleMismatchCount) visibleMismatchCount.textContent = String(visibleMismatches);
+        if (mismatchCount) mismatchCount.textContent = String(mismatches);
+        matchBadgeResult.textContent = `Matches: ${Math.max(0, matrixRows.length - mismatches)}`;
+        mismatchBadgeResult.textContent = `Mismatches: ${mismatches}`;
+        setSubmitAvailability(matrixRows.length > 0 && mismatches === 0);
+
+        return mismatchRows;
+    };
+
+    const wireWorkspace = () => {
+        if (layoutSelect && comparisonLayout) {
+            layoutSelect.onchange = () => {
+                comparisonLayout.className = `comparison-layout ${layoutSelect.value}`;
+            };
+        }
+
+        if (mismatchOnlyToggle) mismatchOnlyToggle.onchange = () => evaluateMatrix();
+        if (matrixSearchInput) matrixSearchInput.oninput = () => evaluateMatrix();
+
+        matrixRows.forEach((row) => {
+            const input = row.querySelector('[data-actual-input]');
+            if (input) input.oninput = () => evaluateMatrix();
+        });
+
+        if (nextMismatchBtn) {
+            nextMismatchBtn.onclick = () => {
+                const mismatchRows = evaluateMatrix();
+                const target = mismatchRows.find((x) => !x.classList.contains('hidden-by-filter')) || mismatchRows[0];
+                if (!target) return;
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                target.classList.remove('mismatch-focus');
+                requestAnimationFrame(() => target.classList.add('mismatch-focus'));
+            };
+        }
+
+        evaluateMatrix();
+    };
+
+    if (openPdfModalBtn) {
+        openPdfModalBtn.addEventListener('click', () => {
+            if (pdfPreviewModalFrame) {
+                pdfPreviewModalFrame.src = pdfFrame.getAttribute('src') || '';
+            }
+            openModal(pdfPreviewModal);
+        });
+    }
+
+    if (openMatrixModalBtn) {
+        openMatrixModalBtn.addEventListener('click', () => {
+            cloneMatrixForModal();
+            openModal(matrixPreviewModal);
+        });
+    }
+
+    document.querySelectorAll('[data-close-modal]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const targetId = button.getAttribute('data-close-modal');
+            if (!targetId) return;
+            const modal = document.getElementById(targetId);
+            closeModal(modal);
+        });
+    });
+
+    [pdfPreviewModal, matrixPreviewModal].forEach((modal) => {
+        if (!modal) return;
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) closeModal(modal);
+        });
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        closeModal(pdfPreviewModal);
+        closeModal(matrixPreviewModal);
+    });
+
+    if (indexSubmitBtn) {
+        indexSubmitBtn.addEventListener('click', async () => {
+            clearError();
+            const mismatches = Number(mismatchCount ? mismatchCount.textContent : '0');
+            if (mismatches > 0 || matrixRows.length === 0) {
+                showError('Submit is allowed only when all values match.');
+                return;
+            }
+
+            const rowsPayload = matrixRows.map((row) => {
+                const fieldCell = row.querySelector('td strong');
+                const input = row.querySelector('[data-actual-input]');
+                return {
+                    field: fieldCell ? fieldCell.textContent || '' : '',
+                    apiValue: row.dataset.expected || '',
+                    pdfValue: input && input.value ? input.value : ''
+                };
+            });
+
+            const fd = new FormData();
+            fd.append('rowsJson', JSON.stringify(rowsPayload));
+            fd.append('sourceFileName', currentSourceFileName || 'uploaded.pdf');
+
+            const token = form.querySelector('input[name="__RequestVerificationToken"]');
+            if (token) fd.append('__RequestVerificationToken', token.value);
+
+            indexSubmitBtn.disabled = true;
+            const originalText = indexSubmitBtn.textContent;
+            indexSubmitBtn.textContent = 'Submitting...';
+
+            try {
+                const res = await fetch('@Url.Action("SubmitIndexComparison", "ComparisonJobs")', {
+                    method: 'POST',
+                    body: fd,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                if (!res.ok) {
+                    let message = 'Unable to submit comparison.';
+                    try {
+                        const payload = await res.json();
+                        if (payload && payload.error) message = payload.error;
+                    } catch {
+                        // Keep fallback message for non-JSON responses.
+                    }
+                    showError(message);
+                    return;
+                }
+
+                const blob = await res.blob();
+                const contentDisposition = res.headers.get('Content-Disposition') || '';
+                const match = /filename\*?=(?:UTF-8''|")?([^\";]+)/i.exec(contentDisposition);
+                const downloadedFileName = match && match[1]
+                    ? decodeURIComponent(match[1].replace(/"/g, '').trim())
+                    : 'comparison.xlsx';
+
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = downloadedFileName;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.URL.revokeObjectURL(url);
+                setStatus('Excel downloaded', 'success');
+            } catch (err) {
+                showError(err && err.message ? err.message : 'Unexpected error while generating Excel.');
+            } finally {
+                indexSubmitBtn.disabled = false;
+                indexSubmitBtn.textContent = originalText;
+            }
+        });
+    }
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        clearError();
+        resultWrap.hidden = true;
+        matchBadge.hidden = true;
+        mismatchBadge.hidden = true;
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            showError('Please choose a PDF file.');
+            return;
+        }
+
+        const fd = new FormData();
+        fd.append('pdfFile', fileInput.files[0]);
+
+        const token = form.querySelector('input[name="__RequestVerificationToken"]');
+        if (token) fd.append('__RequestVerificationToken', token.value);
+
+        submitBtn.disabled = true;
+        setStatus('Uploading...', 'warning');
+
+        try {
+            const res = await fetch('@Url.Action("UploadAndCompare", "ComparisonJobs")', {
+                method: 'POST',
+                body: fd,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            const payload = await res.json();
+            if (!res.ok) {
+                showError(payload.error || 'Upload/API call failed.');
+                setStatus('Failed', 'danger');
+                return;
+            }
+
+            const rows = Array.isArray(payload.comparisons) ? payload.comparisons : [];
+            renderRows(rows);
+            currentSourceFileName = payload.fileName || (fileInput.files && fileInput.files[0] ? fileInput.files[0].name : '');
+
+            if (payload.pdfBase64) {
+                pdfFrame.src = `data:application/pdf;base64,${payload.pdfBase64}`;
+            }
+
+            matchBadge.textContent = `Matches: ${payload.matches ?? 0}`;
+            mismatchBadge.textContent = `Mismatches: ${payload.mismatches ?? 0}`;
+            matchBadge.hidden = false;
+            mismatchBadge.hidden = false;
+            uploadPanel.hidden = true;
+            resultWrap.hidden = false;
+            wireWorkspace();
+            setStatus('Completed', 'success');
+        } catch (err) {
+            showError(err && err.message ? err.message : 'Unexpected error while processing PDF.');
+            setStatus('Failed', 'danger');
+        } finally {
+            submitBtn.disabled = false;
+        }
+    });
+
+    if (uploadAnotherBtn) {
+        uploadAnotherBtn.addEventListener('click', () => {
+            fileInput.value = '';
+            body.innerHTML = '';
+            matrixRows = [];
+            currentSourceFileName = '';
+            pdfFrame.removeAttribute('src');
+            clearError();
+            matchBadge.hidden = true;
+            mismatchBadge.hidden = true;
+            if (matrixFieldCount) matrixFieldCount.textContent = '0 fields';
+            if (visibleMismatchCount) visibleMismatchCount.textContent = '0';
+            if (mismatchCount) mismatchCount.textContent = '0';
+            if (matrixSearchInput) matrixSearchInput.value = '';
+            if (mismatchOnlyToggle) mismatchOnlyToggle.checked = false;
+            if (layoutSelect) layoutSelect.value = 'side-by-side';
+            if (comparisonLayout) comparisonLayout.className = 'comparison-layout side-by-side';
+            if (matrixPreviewTableWrap) matrixPreviewTableWrap.innerHTML = '';
+            if (pdfPreviewModalFrame) pdfPreviewModalFrame.removeAttribute('src');
+            closeModal(pdfPreviewModal);
+            closeModal(matrixPreviewModal);
+            setSubmitAvailability(false);
+            setStatus('Waiting for upload', 'neutral');
+            resultWrap.hidden = true;
+            uploadPanel.hidden = false;
+        });
+    }
+
+    setSubmitAvailability(false);
+})();
+</script>

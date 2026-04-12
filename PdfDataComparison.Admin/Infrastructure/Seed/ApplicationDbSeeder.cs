@@ -11,7 +11,7 @@ public static class ApplicationDbSeeder
     public static async Task SeedAsync(IServiceProvider serviceProvider)
     {
         var dbContext = serviceProvider.GetRequiredService<ApplicationDbContext>();
-        var hasMigrations = (await dbContext.Database.GetMigrationsAsync()).Any();
+        var hasMigrations = dbContext.Database.GetMigrations().Any();
         if (hasMigrations)
         {
             await dbContext.Database.MigrateAsync();

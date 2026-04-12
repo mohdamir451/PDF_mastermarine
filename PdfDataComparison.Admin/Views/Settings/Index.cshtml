@@ -1,2 +1,51 @@
-@{ ViewData["Title"] = "Settings"; }
-<div class="card form-card"><h3>Configuration</h3><label>Case-insensitive compare <input type="checkbox" checked /></label><label>Export naming convention <input value="comparison-{id}-{date}" /></label><label>PDF security placeholder <input value="enabled" /></label><button class="btn-primary">Save Settings</button></div>
+@{
+    ViewData["Title"] = "Settings";
+    ViewData["Subtitle"] = "Configure platform defaults and operational preferences.";
+}
+
+<section class="page-hero">
+    <div>
+        <h2>Settings</h2>
+        <p>Control default comparison behavior, export patterns, and policy controls.</p>
+    </div>
+</section>
+
+<section class="card form-card">
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Case-insensitive compare</label>
+            <select>
+                <option selected>Enabled</option>
+                <option>Disabled</option>
+            </select>
+            <span class="form-help">When enabled, expected and actual text comparison ignores casing differences.</span>
+        </div>
+
+        <div class="form-group">
+            <label>Export naming convention</label>
+            <input value="comparison-{id}-{date}" />
+            <span class="form-help">Defines the generated filename template for exported Excel files.</span>
+        </div>
+
+        <div class="form-group">
+            <label>PDF security policy</label>
+            <select>
+                <option selected>Enabled</option>
+                <option>Strict mode</option>
+                <option>Disabled</option>
+            </select>
+            <span class="form-help">Controls validation behavior for secured or protected PDF documents.</span>
+        </div>
+
+        <div class="form-group">
+            <label>Review timeout (minutes)</label>
+            <input type="number" value="30" min="5" max="180" />
+            <span class="form-help">Auto-save warning threshold for long-running comparison sessions.</span>
+        </div>
+    </div>
+
+    <div class="toolbar">
+        <button class="btn btn-primary" type="button">Save Settings</button>
+        <button class="btn btn-secondary" type="button" data-confirm-click="Restore all settings to defaults?">Restore Defaults</button>
+    </div>
+</section>

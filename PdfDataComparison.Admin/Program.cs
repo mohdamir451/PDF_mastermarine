@@ -76,7 +76,14 @@ app.MapControllerRoute(
 
 using (var scope = app.Services.CreateScope())
 {
-    await ApplicationDbSeeder.SeedAsync(scope.ServiceProvider);
+    try
+    {
+        await ApplicationDbSeeder.SeedAsync(scope.ServiceProvider);
+    }
+    catch
+    {
+        // Ignore seed failures in local/dev startup to keep UI accessible even when SQL is unavailable.
+    }
 }
 
 app.Run();

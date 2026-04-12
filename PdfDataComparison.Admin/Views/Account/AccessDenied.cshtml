@@ -1,2 +1,10 @@
 @{ ViewData["Title"] = "Access Denied"; }
-<div class="card empty-state"><h2>Access Denied</h2><p>You do not have permission to access this page.</p></div>
+@{ ViewData["Subtitle"] = "Authorization policy prevented access to this resource."; }
+<div class="card empty-state">
+    <div class="empty-state-icon">AD</div>
+    <h2>Access denied</h2>
+    <p>You do not currently have permission to access this section. Contact an administrator if you need additional access rights.</p>
+    <div class="action-bar">
+        <a asp-controller="Dashboard" asp-action="Index" class="btn btn-primary">Return to Dashboard</a>
+    </div>
+</div>

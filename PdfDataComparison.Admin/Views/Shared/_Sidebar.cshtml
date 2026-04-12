@@ -1,31 +1,93 @@
 @using PdfDataComparison.Admin.Constants
+@{
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+    string ActiveClass(string controller) => string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
+}
 <aside class="sidebar" id="sidebar">
-    <div class="brand">PDF Compare</div>
-    <nav>
+    <div class="brand">
+        <div class="brand-mark">MM</div>
+        <div>
+            <strong>Master Marine Services Pvt Ltd</strong>
+            @* <span>Admin Console</span> *@
+        </div>
+    </div>
+
+    <div class="sidebar-search">
+        <input type="search" id="sidebarSearch" placeholder="Search menu..." aria-label="Search navigation" />
+    </div>
+
+    <p class="sidebar-label">Apps</p>
+    <nav class="side-nav">
         @if (User.HasClaim("permission", PermissionCatalog.DashboardView) || User.IsInRole("SuperAdmin"))
-        { <a asp-controller="Dashboard" asp-action="Index">Dashboard</a> }
+        {
+            <a class="@ActiveClass("Dashboard")" asp-controller="Dashboard" asp-action="Index" data-nav-item="Dashboard">
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" class="icon-svg"><path d="M3 3h8v8H3V3zm10 0h8v5h-8V3zM3 13h5v8H3v-8zm7 0h11v8H10v-8z"/></svg></span>
+                <span>Dashboard</span>
+            </a>
+        }
 
         @if (User.HasClaim("permission", PermissionCatalog.ComparisonJobsView) || User.IsInRole("SuperAdmin"))
         {
-            <a asp-controller="ComparisonJobs" asp-action="Index">PDF Comparison Jobs</a>
+            <a class="@ActiveClass("ComparisonJobs")" asp-controller="ComparisonJobs" asp-action="Index" data-nav-item="Comparison Jobs">
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" class="icon-svg"><path d="M7 2h8l5 5v15a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V8h4.5"/></svg></span>
+                <span>Comparison Jobs</span>
+            </a>
         }
 
         @if (User.HasClaim("permission", PermissionCatalog.ReportsView) || User.IsInRole("SuperAdmin"))
-        { <a asp-controller="Reports" asp-action="Index">Reports / Exports</a> }
+        {
+            <a class="@ActiveClass("Reports")" asp-controller="Reports" asp-action="Index" data-nav-item="Reports">
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" class="icon-svg"><path d="M4 19h16v2H4zm2-3h3V9H6v7zm5 0h3V5h-3v11zm5 0h3v-6h-3v6z"/></svg></span>
+                <span>Reports & Exports</span>
+            </a>
+        }
+    </nav>
 
+    <p class="sidebar-label">Administration</p>
+    <nav class="side-nav">
         @if (User.HasClaim("permission", PermissionCatalog.UsersManage) || User.IsInRole("SuperAdmin"))
-        { <a asp-controller="Users" asp-action="Index">User Management</a> }
+        {
+            <a class="@ActiveClass("Users")" asp-controller="Users" asp-action="Index" data-nav-item="User Management">
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" class="icon-svg"><path d="M16 11a4 4 0 1 0-3.999-4A4 4 0 0 0 16 11zM8 12a3 3 0 1 0-3-3 3 3 0 0 0 3 3zm0 2c-2.67 0-8 1.34-8 4v2h10v-2c0-1.15.62-2.14 1.66-2.94A12.7 12.7 0 0 0 8 14zm8 0c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></span>
+                <span>User Management</span>
+            </a>
+        }
 
         @if (User.HasClaim("permission", PermissionCatalog.RolesManage) || User.IsInRole("SuperAdmin"))
-        { <a asp-controller="Roles" asp-action="Index">Role Management</a> }
+        {
+            <a class="@ActiveClass("Roles")" asp-controller="Roles" asp-action="Index" data-nav-item="Role Management">
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" class="icon-svg"><path d="M12 1 3 5v6c0 5 3.8 9.7 9 11 5.2-1.3 9-6 9-11V5l-9-4zm0 3.2 6 2.67V11c0 3.6-2.5 7.15-6 8.23C8.5 18.15 6 14.6 6 11V6.87l6-2.67z"/></svg></span>
+                <span>Role Management</span>
+            </a>
+        }
 
         @if (User.HasClaim("permission", PermissionCatalog.PermissionsManage) || User.IsInRole("SuperAdmin"))
-        { <a asp-controller="Permissions" asp-action="Index">Page Permissions</a> }
+        {
+            <a class="@ActiveClass("Permissions")" asp-controller="Permissions" asp-action="Index" data-nav-item="Permissions">
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" class="icon-svg"><path d="M12 1a7 7 0 0 0-7 7v4H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V8a7 7 0 0 0-7-7zm-5 11V8a5 5 0 0 1 10 0v4H7z"/></svg></span>
+                <span>Page Permissions</span>
+            </a>
+        }
 
         @if (User.HasClaim("permission", PermissionCatalog.AuditLogsView) || User.IsInRole("SuperAdmin"))
-        { <a asp-controller="Audit" asp-action="Index">Audit Logs</a> }
+        {
+            <a class="@ActiveClass("Audit")" asp-controller="Audit" asp-action="Index" data-nav-item="Audit Logs">
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" class="icon-svg"><path d="M12 1 3 5v6c0 5.5 3.8 10.4 9 11.9C17.2 21.4 21 16.5 21 11V5l-9-4zm1 6v5.59l3.29 3.3-1.41 1.41L11 13V7h2z"/></svg></span>
+                <span>Audit Logs</span>
+            </a>
+        }
 
         @if (User.HasClaim("permission", PermissionCatalog.SettingsManage) || User.IsInRole("SuperAdmin"))
-        { <a asp-controller="Settings" asp-action="Index">Settings</a> }
+        {
+            <a class="@ActiveClass("Settings")" asp-controller="Settings" asp-action="Index" data-nav-item="Settings">
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" class="icon-svg"><path d="m19.43 12.98 1.34-1.03-1.28-2.22-1.64.36a6.7 6.7 0 0 0-1.15-.67L16.5 7h-3l-.2 1.42c-.4.16-.78.38-1.14.65l-1.65-.36-1.28 2.22 1.34 1.03c-.03.22-.05.45-.05.68s.02.46.05.68l-1.34 1.03 1.28 2.22 1.65-.36c.35.27.73.49 1.13.65L13.5 19h3l.2-1.42c.4-.16.78-.38 1.14-.65l1.64.36 1.28-2.22-1.34-1.03c.03-.22.05-.45.05-.68s-.02-.46-.04-.68zM15 12a3 3 0 1 1-3-3 3 3 0 0 1 3 3z"/></svg></span>
+                <span>Settings</span>
+            </a>
+        }
     </nav>
+
+    <div class="sidebar-footer">
+        <span>Enterprise Console</span>
+        <strong>Role-Based Access</strong>
+    </div>
 </aside>

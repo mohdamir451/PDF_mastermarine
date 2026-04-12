@@ -1,3 +1,46 @@
 @model string
-@{ ViewData["Title"] = "Edit User"; }
-<div class="card form-card"><h3>Edit User</h3><p>Editing user: @Model</p></div>
+@{
+    ViewData["Title"] = "Edit User";
+    ViewData["Subtitle"] = "Review profile details and account status controls.";
+}
+
+<section class="page-hero">
+    <div>
+        <h2>Edit User</h2>
+        <p>Update user metadata and role membership settings.</p>
+    </div>
+    <a asp-action="Index" class="btn btn-secondary">Back to Users</a>
+</section>
+
+<section class="card form-card">
+    <div class="alert warning">Edit action is not connected to persistence yet. Reviewing account <strong>@Model</strong>.</div>
+
+    <div class="form-grid">
+        <div class="form-group">
+            <label>User ID</label>
+            <input value="@Model" readonly />
+        </div>
+        <div class="form-group">
+            <label>Display Name</label>
+            <input placeholder="System User" />
+        </div>
+        <div class="form-group">
+            <label>Email Address</label>
+            <input type="email" placeholder="name@company.com" />
+        </div>
+        <div class="form-group">
+            <label>Department</label>
+            <input placeholder="Operations" />
+        </div>
+    </div>
+
+    <label class="checkbox-row">
+        <input type="checkbox" checked />
+        <span>Account is active</span>
+    </label>
+
+    <div class="toolbar">
+        <button class="btn btn-primary" type="button" disabled aria-disabled="true">Save Changes (Pending Backend)</button>
+        <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+    </div>
+</section>

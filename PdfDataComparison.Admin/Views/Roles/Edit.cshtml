@@ -1,4 +1,4 @@
-@model string
+@model RoleFormVm
 @{
     ViewData["Title"] = "Edit Role";
     ViewData["Subtitle"] = "Adjust role metadata and governance notes.";
@@ -13,26 +13,30 @@
 </section>
 
 <section class="card form-card">
-    <div class="alert warning">Role editing is awaiting backend command wiring. Viewing role id <strong>@Model</strong>.</div>
-
-    <div class="form-grid">
+    <form asp-action="Edit" method="post">
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <div asp-validation-summary="ModelOnly" class="field-validation-error"></div>
+        <div class="form-grid">
         <div class="form-group">
             <label>Role ID</label>
-            <input value="@Model" readonly />
+            <input value="@Model.Id" readonly />
         </div>
         <div class="form-group">
-            <label>Role Name</label>
-            <input placeholder="Operations Admin" />
+            <label asp-for="Name">Role Name</label>
+            <input asp-for="Name" placeholder="Operations Admin" />
+            <span asp-validation-for="Name" class="field-validation-error"></span>
         </div>
-    </div>
+        </div>
 
-    <div class="form-group">
-        <label>Description</label>
-        <textarea rows="3" placeholder="Role responsibility summary"></textarea>
-    </div>
+        <div class="form-group">
+            <label asp-for="Description">Description</label>
+            <textarea asp-for="Description" rows="3" placeholder="Role responsibility summary"></textarea>
+        </div>
 
-    <div class="toolbar">
-        <button class="btn btn-primary" type="button" disabled aria-disabled="true">Save Role (Pending Backend)</button>
-        <a asp-action="Index" class="btn btn-secondary">Cancel</a>
-    </div>
+        <div class="toolbar">
+            <button class="btn btn-primary" type="submit">Save Role</button>
+            <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
 </section>

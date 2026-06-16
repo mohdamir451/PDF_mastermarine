@@ -12,6 +12,9 @@ public class DashboardController(ApplicationDbContext dbContext) : Controller
 {
     public async Task<IActionResult> Index()
     {
+        var completedJobSubmissions = await dbContext.ComparisonSubmissions.CountAsync();
+        var completedPdfSubmissions = await dbContext.PdfComparisonSubmissions.CountAsync(x => x.IsActive);
+
         var vm = new DashboardVm
         {
             TotalUsers = await dbContext.Users.CountAsync(),
@@ -19,7 +22,7 @@ public class DashboardController(ApplicationDbContext dbContext) : Controller
             TotalRoles = await dbContext.Roles.CountAsync(),
             TotalComparisonJobs = await dbContext.ComparisonJobs.CountAsync(),
             PendingMismatches = await dbContext.ComparisonFields.CountAsync(x => !x.IsMatch && x.IsBlocking),
-            CompletedSubmissions = await dbContext.ComparisonSubmissions.CountAsync(),
+            CompletedSubmissions = completedJobSubmissions + completedPdfSubmissions,
             RecentActivity = await dbContext.AuditLogs.OrderByDescending(x => x.Timestamp).Take(5).Select(x => $"{x.Action} · {x.TargetEntity}").ToListAsync()
         };
         return View(vm);

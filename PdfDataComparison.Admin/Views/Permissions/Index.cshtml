@@ -38,44 +38,67 @@
 
     @if (pages != null && pages.Any())
     {
-        <div class="table-wrap">
-            <table class="table">
-                <thead>
-                <tr>
-                    <th>Page</th>
-                    <th>Permission Key</th>
-                    <th>Capabilities</th>
-                </tr>
-                </thead>
-                <tbody>
-                @foreach (var permissionPage in pages)
-                {
-                    var permissions = rolePermissions.FirstOrDefault(x => x.PagePermissionId == permissionPage.Id);
+        <form asp-action="Save" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="roleId" value="@selectedRoleId" />
+            <div class="table-wrap">
+                <table class="table">
+                    <thead>
                     <tr>
-                        <td><strong>@permissionPage.PageName</strong></td>
-                        <td>@permissionPage.PermissionKey</td>
-                        <td>
-                            @if (permissions == null)
-                            {
-                                <span class="badge danger">No Access</span>
-                            }
-                            else
-                            {
-                                <div class="toolbar">
-                                    @if (permissions.CanView) { <span class="badge neutral">View</span> }
-                                    @if (permissions.CanCreate) { <span class="badge success">Create</span> }
-                                    @if (permissions.CanEdit) { <span class="badge warning">Edit</span> }
-                                    @if (permissions.CanDelete) { <span class="badge danger">Delete</span> }
-                                    @if (permissions.CanSubmit) { <span class="badge success">Submit</span> }
-                                    @if (permissions.CanExport) { <span class="badge neutral">Export</span> }
-                                </div>
-                            }
-                        </td>
+                        <th>Page</th>
+                        <th>Permission Key</th>
+                        <th>View</th>
+                        <th>Create</th>
+                        <th>Edit</th>
+                        <th>Delete</th>
+                        <th>Submit</th>
+                        <th>Export</th>
                     </tr>
-                }
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                    @for (var i = 0; i < pages.Count; i++)
+                    {
+                        var permissionPage = pages[i];
+                        var permissions = rolePermissions.FirstOrDefault(x => x.PagePermissionId == permissionPage.Id);
+                        <tr>
+                            <td>
+                                <strong>@permissionPage.PageName</strong>
+                                <input type="hidden" name="permissions[@i].PagePermissionId" value="@permissionPage.Id" />
+                            </td>
+                            <td>@permissionPage.PermissionKey</td>
+                            <td>
+                                <input type="hidden" name="permissions[@i].CanView" value="false" />
+                                <input type="checkbox" name="permissions[@i].CanView" value="true" checked="@((permissions?.CanView == true) ? "checked" : null)" />
+                            </td>
+                            <td>
+                                <input type="hidden" name="permissions[@i].CanCreate" value="false" />
+                                <input type="checkbox" name="permissions[@i].CanCreate" value="true" checked="@((permissions?.CanCreate == true) ? "checked" : null)" />
+                            </td>
+                            <td>
+                                <input type="hidden" name="permissions[@i].CanEdit" value="false" />
+                                <input type="checkbox" name="permissions[@i].CanEdit" value="true" checked="@((permissions?.CanEdit == true) ? "checked" : null)" />
+                            </td>
+                            <td>
+                                <input type="hidden" name="permissions[@i].CanDelete" value="false" />
+                                <input type="checkbox" name="permissions[@i].CanDelete" value="true" checked="@((permissions?.CanDelete == true) ? "checked" : null)" />
+                            </td>
+                            <td>
+                                <input type="hidden" name="permissions[@i].CanSubmit" value="false" />
+                                <input type="checkbox" name="permissions[@i].CanSubmit" value="true" checked="@((permissions?.CanSubmit == true) ? "checked" : null)" />
+                            </td>
+                            <td>
+                                <input type="hidden" name="permissions[@i].CanExport" value="false" />
+                                <input type="checkbox" name="permissions[@i].CanExport" value="true" checked="@((permissions?.CanExport == true) ? "checked" : null)" />
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            <div class="toolbar" style="margin-top:16px;">
+                <button type="submit" class="btn btn-primary" disabled="@(string.IsNullOrWhiteSpace(selectedRoleId) ? "disabled" : null)">Save Permissions</button>
+            </div>
+        </form>
     }
     else
     {

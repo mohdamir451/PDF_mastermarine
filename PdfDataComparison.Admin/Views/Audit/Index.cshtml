@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Audit Logs";
     ViewData["Subtitle"] = "Chronological system activity for compliance and traceability.";
+    var auditTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
 }
 
 <section class="page-hero">
@@ -35,8 +36,9 @@
                     <th><button type="button" class="sort-btn" data-sort-col="0">Action</button></th>
                     <th><button type="button" class="sort-btn" data-sort-col="1">Performed By</button></th>
                     <th><button type="button" class="sort-btn" data-sort-col="2">Target</button></th>
-                    <th><button type="button" class="sort-btn" data-sort-col="3">Timestamp (UTC)</button></th>
-                    <th><button type="button" class="sort-btn" data-sort-col="4">Notes</button></th>
+                    <th><button type="button" class="sort-btn" data-sort-col="3">Timestamp (IST)</button></th>
+                    <th>UTC</th>
+                    <th><button type="button" class="sort-btn" data-sort-col="5">Notes</button></th>
                 </tr>
                 </thead>
                 <tbody>
@@ -46,6 +48,7 @@
                         <td><span class="badge neutral">@log.Action</span></td>
                         <td>@log.PerformedByName</td>
                         <td>@log.TargetEntity</td>
+                        <td>@TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(log.Timestamp, DateTimeKind.Utc), auditTimeZone).ToString("yyyy-MM-dd HH:mm:ss")</td>
                         <td>@log.Timestamp.ToString("u")</td>
                         <td>@(string.IsNullOrWhiteSpace(log.Notes) ? "-" : log.Notes)</td>
                     </tr>

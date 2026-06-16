@@ -15,6 +15,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<ComparisonJob> ComparisonJobs => Set<ComparisonJob>();
     public DbSet<ComparisonField> ComparisonFields => Set<ComparisonField>();
     public DbSet<ComparisonSubmission> ComparisonSubmissions => Set<ComparisonSubmission>();
+    public DbSet<PdfComparisonSubmission> PdfComparisonSubmissions => Set<PdfComparisonSubmission>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -28,5 +29,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
         builder.Entity<ComparisonField>()
             .Property(x => x.IsMatch)
             .HasDefaultValue(false);
+
+        builder.Entity<PdfComparisonSubmission>()
+            .HasIndex(x => x.BillOfLadingNumber);
+
+        builder.Entity<PdfComparisonSubmission>()
+            .Property(x => x.IsActive)
+            .HasDefaultValue(true);
     }
 }

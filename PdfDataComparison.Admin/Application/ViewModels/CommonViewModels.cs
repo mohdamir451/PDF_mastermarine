@@ -41,6 +41,55 @@ public class ComparisonJobListItemVm
     public DateTime CreatedAt { get; set; }
 }
 
+public class ComparisonJobsIndexVm
+{
+    public PagedResult<ComparisonJobListItemVm> Jobs { get; set; } = new();
+    public List<PdfComparisonSubmissionListItemVm> PdfSubmissions { get; set; } = new();
+}
+
+public class PdfComparisonSubmissionListItemVm
+{
+    public int Id { get; set; }
+    public string BillOfLadingNumber { get; set; } = string.Empty;
+    public string PayloadJson { get; set; } = string.Empty;
+    public string SourceFileName { get; set; } = string.Empty;
+    public string SubmittedByUserId { get; set; } = string.Empty;
+    public DateTime SubmittedAt { get; set; }
+    public bool IsActive { get; set; }
+    public int TotalFields { get; set; }
+    public int IssueCount { get; set; }
+    public string ValidationStatus => IssueCount == 0 ? "Complete" : "Needs Review";
+}
+
+public class ReportHistoryItemVm
+{
+    public int Id { get; set; }
+    public string SourceType { get; set; } = string.Empty;
+    public string Reference { get; set; } = string.Empty;
+    public string SourceFileName { get; set; } = string.Empty;
+    public string SubmittedByUserId { get; set; } = string.Empty;
+    public DateTime SubmittedAt { get; set; }
+    public bool HasDetailsPage { get; set; }
+}
+
+public class RoleFormVm
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+}
+
+public class RolePermissionInputVm
+{
+    public int PagePermissionId { get; set; }
+    public bool CanView { get; set; }
+    public bool CanCreate { get; set; }
+    public bool CanEdit { get; set; }
+    public bool CanDelete { get; set; }
+    public bool CanSubmit { get; set; }
+    public bool CanExport { get; set; }
+}
+
 public class ComparisonScreenVm
 {
     public int JobId { get; set; }

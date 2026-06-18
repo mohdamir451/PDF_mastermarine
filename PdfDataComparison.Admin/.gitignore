@@ -1,0 +1,50 @@
+# Build output
+bin/
+obj/
+buildcheck-output/
+
+# Visual Studio / Rider / VS Code local state
+.vs/
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.user
+*.suo
+*.rsuser
+
+# Logs and runtime diagnostics
+*.log
+*.log.*
+App_Data/*.jsonl
+App_Data/*.log
+
+# Local configuration and secrets
+appsettings.Local.json
+appsettings.*.Local.json
+*.pubxml.user
+secrets.json
+
+# Test and coverage output
+TestResults/
+coverage/
+coverage.*
+*.coverage
+*.coveragexml
+
+# Packages and generated assets
+*.nupkg
+*.snupkg
+packages/
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Archives / local exports
+*.zip
+*.7z
+*.rar

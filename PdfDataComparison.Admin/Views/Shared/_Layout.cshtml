@@ -43,6 +43,10 @@
     </div>
 </div>
 
+<form asp-controller="Account" asp-action="Logout" method="post" id="idleLogoutForm" hidden>
+    @Html.AntiForgeryToken()
+</form>
+
 <script src="~/js/site.js"></script>
 <script>
 (() => {
@@ -52,6 +56,7 @@
     const modal = document.getElementById('idleTimeoutModal');
     const stayBtn = document.getElementById('idleStaySignedInBtn');
     const logoutBtn = document.getElementById('idleLogoutNowBtn');
+    const idleLogoutForm = document.getElementById('idleLogoutForm');
     let warningTimer = 0;
     let logoutTimer = 0;
 
@@ -105,7 +110,7 @@
         warningTimer = window.setTimeout(showIdleWarning, warningAfterMs);
         logoutTimer = window.setTimeout(() => {
             saveDraft();
-            window.location.href = '@Url.Action("Logout", "Account")';
+            if (idleLogoutForm) idleLogoutForm.submit();
         }, logoutAfterMs);
     };
 
@@ -117,7 +122,7 @@
     if (stayBtn) stayBtn.addEventListener('click', resetIdleTimers);
     if (logoutBtn) logoutBtn.addEventListener('click', () => {
         saveDraft();
-        window.location.href = '@Url.Action("Logout", "Account")';
+        if (idleLogoutForm) idleLogoutForm.submit();
     });
     resetIdleTimers();
 })();

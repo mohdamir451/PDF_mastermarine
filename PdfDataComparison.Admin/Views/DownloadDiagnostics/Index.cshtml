@@ -1,0 +1,209 @@
+@model DownloadDiagnosticLogsVm
+@{
+    ViewData["Title"] = "Download Diagnostics";
+    ViewData["Subtitle"] = "Inspect selected Excel ZIP download errors and trace references.";
+}
+
+<section class="page-hero">
+    <div>
+        <h2>Download Diagnostics</h2>
+        <p>Use this page to match browser error references with server-side download exceptions.</p>
+    </div>
+    <div class="table-tools">
+        <a asp-controller="ComparisonJobs" asp-action="SubmittedPdfData" class="btn btn-ghost">Submitted PDF Data</a>
+        <span class="badge neutral">@Model.Entries.Count log entries</span>
+    </div>
+</section>
+
+<section class="card diagnostics-card">
+    <div class="action-bar diagnostics-toolbar">
+        <div>
+            <h3 class="card-title">Selected Excel ZIP Logs</h3>
+            <p class="form-help">Newest entries are shown first. Search by error reference, selected ID, user, message, or exception text.</p>
+        </div>
+        <input id="diagnosticsSearch" type="search" placeholder="Search logs..." aria-label="Search download diagnostics" />
+    </div>
+
+    @if (Model.Entries.Any())
+    {
+        <div class="diagnostics-list" id="diagnosticsList">
+            @foreach (var entry in Model.Entries)
+            {
+                var levelClass = entry.Level.Equals("Error", StringComparison.OrdinalIgnoreCase) ? "danger" :
+                    entry.Level.Equals("Warning", StringComparison.OrdinalIgnoreCase) ? "warning" : "info";
+
+                <article class="diagnostic-entry" data-diagnostic-entry>
+                    <div class="diagnostic-entry-head">
+                        <span class="badge @levelClass">@entry.Level</span>
+                        <strong>@entry.Message</strong>
+                        <time>@entry.TimestampUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</time>
+                    </div>
+                    <div class="diagnostic-meta-grid">
+                        <div><span>Error Reference</span><strong>@(string.IsNullOrWhiteSpace(entry.ErrorReference) ? "-" : entry.ErrorReference)</strong></div>
+                        <div><span>Selected IDs</span><strong>@(string.IsNullOrWhiteSpace(entry.SelectedIds) ? "-" : entry.SelectedIds)</strong></div>
+                        <div><span>Submission IDs</span><strong>@(string.IsNullOrWhiteSpace(entry.SubmissionIds) ? "-" : entry.SubmissionIds)</strong></div>
+                        <div><span>User</span><strong>@(string.IsNullOrWhiteSpace(entry.UserName) ? "-" : entry.UserName)</strong></div>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(entry.Exception))
+                    {
+                        <details class="diagnostic-exception">
+                            <summary>View exception</summary>
+                            <pre>@entry.Exception</pre>
+                        </details>
+                    }
+                </article>
+            }
+        </div>
+        <div class="empty-state compact-empty" id="diagnosticsNoResults" hidden>
+            <h3>No logs match your search</h3>
+            <p>Clear the search box to show all diagnostic entries.</p>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <div class="empty-state-icon">LOG</div>
+            <h3>No download diagnostics yet</h3>
+            <p>Entries will appear here after a selected Excel ZIP download is attempted.</p>
+        </div>
+    }
+</section>
+
+<style>
+    .diagnostics-card {
+        overflow: hidden;
+    }
+
+    .diagnostics-toolbar {
+        align-items: flex-end;
+        gap: 16px;
+    }
+
+    .diagnostics-toolbar input {
+        width: min(420px, 100%);
+    }
+
+    .diagnostics-list {
+        display: grid;
+        gap: 12px;
+    }
+
+    .diagnostic-entry {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+        padding: 14px;
+    }
+
+    .diagnostic-entry-head {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .diagnostic-entry-head strong {
+        color: var(--title);
+    }
+
+    .diagnostic-entry-head time {
+        color: var(--text-muted);
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .diagnostic-meta-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    .diagnostic-meta-grid div {
+        min-width: 0;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface-muted);
+        padding: 10px;
+    }
+
+    .diagnostic-meta-grid span {
+        display: block;
+        color: var(--text-muted);
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .diagnostic-meta-grid strong {
+        display: block;
+        margin-top: 4px;
+        color: var(--text);
+        overflow-wrap: anywhere;
+    }
+
+    .diagnostic-exception {
+        margin-top: 12px;
+    }
+
+    .diagnostic-exception summary {
+        color: var(--primary);
+        cursor: pointer;
+        font-weight: 800;
+    }
+
+    .diagnostic-exception pre {
+        max-height: 360px;
+        overflow: auto;
+        margin: 10px 0 0;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #0f172a;
+        color: #e2e8f0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 12px;
+    }
+
+    @@media (max-width: 1100px) {
+        .diagnostic-meta-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 720px) {
+        .diagnostics-toolbar,
+        .diagnostic-entry-head {
+            grid-template-columns: 1fr;
+        }
+
+        .diagnostic-meta-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<script>
+(() => {
+    const search = document.getElementById('diagnosticsSearch');
+    const entries = Array.from(document.querySelectorAll('[data-diagnostic-entry]'));
+    const noResults = document.getElementById('diagnosticsNoResults');
+
+    if (!search) return;
+
+    search.addEventListener('input', () => {
+        const query = search.value.trim().toLowerCase();
+        let visible = 0;
+
+        entries.forEach((entry) => {
+            const isVisible = !query || entry.innerText.toLowerCase().includes(query);
+            entry.hidden = !isVisible;
+            if (isVisible) visible += 1;
+        });
+
+        if (noResults) noResults.hidden = visible > 0;
+    });
+})();
+</script>

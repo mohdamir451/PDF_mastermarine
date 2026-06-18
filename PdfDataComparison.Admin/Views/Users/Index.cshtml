@@ -15,6 +15,11 @@
 </section>
 
 <section class="card">
+    @if (TempData["SuccessMessage"] is string successMessage)
+    {
+        <div class="alert success">@successMessage</div>
+    }
+
     <form method="get" class="action-bar">
         <div class="filter-bar">
             <label for="usersSearch" class="sr-only">Search users</label>
@@ -75,6 +80,7 @@
                                 <summary>Actions</summary>
                                 <div class="row-menu-list">
                                     <a asp-action="Edit" asp-route-id="@user.Id">Edit User</a>
+                                    <a asp-action="ResetPassword" asp-route-id="@user.Id">Reset Password</a>
                                 </div>
                             </details>
                         </td>

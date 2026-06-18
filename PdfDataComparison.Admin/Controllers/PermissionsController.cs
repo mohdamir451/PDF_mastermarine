@@ -25,26 +25,45 @@ public class PermissionsController(ApplicationDbContext dbContext, IRoleService 
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Save(string roleId, List<RolePermissionInputVm> permissions)
+    public async Task<IActionResult> Save(string roleId)
     {
         if (string.IsNullOrWhiteSpace(roleId))
         {
             return BadRequest("A role must be selected before saving permissions.");
         }
 
-        var entities = permissions.Select(x => new RolePermission
+        var pages = await dbContext.PagePermissions
+            .OrderBy(x => x.PageName)
+            .ToListAsync();
+
+        var entities = pages.Select((page, index) => new RolePermission
         {
             RoleId = roleId,
-            PagePermissionId = x.PagePermissionId,
-            CanView = x.CanView,
-            CanCreate = x.CanCreate,
-            CanEdit = x.CanEdit,
-            CanDelete = x.CanDelete,
-            CanSubmit = x.CanSubmit,
-            CanExport = x.CanExport
-        });
+            PagePermissionId = ReadPostedInt($"permissions[{index}].PagePermissionId", page.Id),
+            CanView = ReadPostedBool($"permissions[{index}].CanView"),
+            CanCreate = ReadPostedBool($"permissions[{index}].CanCreate"),
+            CanEdit = ReadPostedBool($"permissions[{index}].CanEdit"),
+            CanDelete = ReadPostedBool($"permissions[{index}].CanDelete"),
+            CanSubmit = ReadPostedBool($"permissions[{index}].CanSubmit"),
+            CanExport = ReadPostedBool($"permissions[{index}].CanExport")
+        })
+            .Where(x => x.PagePermissionId > 0)
+            .ToList();
 
         await permissionService.UpsertRolePermissionsAsync(roleId, entities);
+        TempData["SuccessMessage"] = "Permission matrix saved successfully.";
         return RedirectToAction(nameof(Index), new { roleId });
+    }
+
+    private bool ReadPostedBool(string key)
+    {
+        var values = Request.Form[key];
+        return values.Any(value => string.Equals(value, "true", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private int ReadPostedInt(string key, int fallback)
+    {
+        var value = Request.Form[key].FirstOrDefault();
+        return int.TryParse(value, out var parsed) ? parsed : fallback;
     }
 }

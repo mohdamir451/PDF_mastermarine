@@ -55,6 +55,11 @@ public class AccountController(
     }
 
     [Authorize]
+    [HttpGet]
+    [ActionName("Logout")]
+    public IActionResult LogoutGet() => RedirectToAction(nameof(Login));
+
+    [Authorize]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()

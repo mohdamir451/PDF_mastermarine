@@ -10,7 +10,10 @@
         <h2>Audit Logs</h2>
         <p>Review who performed what action and when across the workspace.</p>
     </div>
-    <span class="badge neutral">Last @Model.Count records</span>
+    <div class="table-tools">
+        <a asp-action="DownloadExcel" class="btn btn-primary">Download Excel</a>
+        <span class="badge neutral">Last @Model.Count records</span>
+    </div>
 </section>
 
 <section class="card">

@@ -1,0 +1,69 @@
+using System.Text.Json;
+using PdfDataComparison.Admin.Application.Interfaces;
+using PdfDataComparison.Admin.Application.ViewModels;
+
+namespace PdfDataComparison.Admin.Infrastructure.Services;
+
+public class FileDownloadDiagnosticLogStore(IWebHostEnvironment environment) : IDownloadDiagnosticLogStore
+{
+    private static readonly SemaphoreSlim FileLock = new(1, 1);
+    private readonly string logPath = Path.Combine(environment.ContentRootPath, "App_Data", "download-diagnostics.jsonl");
+
+    public async Task WriteAsync(DownloadDiagnosticLogEntryVm entry)
+    {
+        entry.TimestampUtc = entry.TimestampUtc == default ? DateTime.UtcNow : entry.TimestampUtc;
+
+        var directory = Path.GetDirectoryName(logPath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        var line = JsonSerializer.Serialize(entry) + Environment.NewLine;
+
+        await FileLock.WaitAsync();
+        try
+        {
+            await File.AppendAllTextAsync(logPath, line);
+        }
+        finally
+        {
+            FileLock.Release();
+        }
+    }
+
+    public async Task<IReadOnlyList<DownloadDiagnosticLogEntryVm>> ReadLatestAsync(int take = 200)
+    {
+        if (!File.Exists(logPath)) return Array.Empty<DownloadDiagnosticLogEntryVm>();
+
+        await FileLock.WaitAsync();
+        try
+        {
+            var lines = await File.ReadAllLinesAsync(logPath);
+            return lines
+                .Reverse()
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .Select(TryDeserialize)
+                .Where(entry => entry != null)
+                .Take(Math.Max(1, take))
+                .Cast<DownloadDiagnosticLogEntryVm>()
+                .ToList();
+        }
+        finally
+        {
+            FileLock.Release();
+        }
+    }
+
+    private static DownloadDiagnosticLogEntryVm? TryDeserialize(string line)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<DownloadDiagnosticLogEntryVm>(line);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+}

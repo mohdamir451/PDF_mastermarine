@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace PdfDataComparison.Admin.Application.ViewModels;
 
 public class PagedResult<T>
@@ -21,15 +23,128 @@ public class UserListItemVm
     public List<string> Roles { get; set; } = new();
 }
 
+public class UserCreateVm
+{
+    [Required(ErrorMessage = "Full name is required.")]
+    [StringLength(150, ErrorMessage = "Full name cannot exceed 150 characters.")]
+    public string FullName { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Email address is required.")]
+    [EmailAddress(ErrorMessage = "Enter a valid email address.")]
+    public string Email { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Department is required.")]
+    [StringLength(100, ErrorMessage = "Department cannot exceed 100 characters.")]
+    public string Department { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Password is required.")]
+    [DataType(DataType.Password)]
+    public string Password { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Confirm password is required.")]
+    [DataType(DataType.Password)]
+    [Compare(nameof(Password), ErrorMessage = "Password and confirm password do not match.")]
+    public string ConfirmPassword { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Default role is required.")]
+    public string RoleName { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+    public List<string> AvailableRoles { get; set; } = new();
+}
+
+public class UserEditVm
+{
+    public string Id { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Full name is required.")]
+    [StringLength(150, ErrorMessage = "Full name cannot exceed 150 characters.")]
+    public string FullName { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Email address is required.")]
+    [EmailAddress(ErrorMessage = "Enter a valid email address.")]
+    public string Email { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Department is required.")]
+    [StringLength(100, ErrorMessage = "Department cannot exceed 100 characters.")]
+    public string Department { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Role is required.")]
+    public string RoleName { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+    public List<string> AvailableRoles { get; set; } = new();
+}
+
+public class UserResetPasswordVm
+{
+    public string Id { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "New password is required.")]
+    [DataType(DataType.Password)]
+    public string NewPassword { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Confirm password is required.")]
+    [DataType(DataType.Password)]
+    [Compare(nameof(NewPassword), ErrorMessage = "Password and confirm password do not match.")]
+    public string ConfirmPassword { get; set; } = string.Empty;
+}
+
 public class DashboardVm
 {
     public int TotalUsers { get; set; }
     public int ActiveUsers { get; set; }
+    public int InactiveUsers => Math.Max(0, TotalUsers - ActiveUsers);
     public int TotalRoles { get; set; }
     public int TotalComparisonJobs { get; set; }
     public int PendingMismatches { get; set; }
     public int CompletedSubmissions { get; set; }
-    public List<string> RecentActivity { get; set; } = new();
+    public int JobSubmissions { get; set; }
+    public int ActivePdfSubmissions { get; set; }
+    public int ReplacedPdfSubmissions { get; set; }
+    public int CompletePdfSubmissions { get; set; }
+    public int PdfSubmissionsNeedingReview { get; set; }
+    public int TotalPdfSubmissions => ActivePdfSubmissions + ReplacedPdfSubmissions;
+    public int TotalComparisonFields { get; set; }
+    public int MatchedComparisonFields { get; set; }
+    public int BlockingComparisonFields { get; set; }
+    public DateTime? LastPdfSubmittedAt { get; set; }
+    public DateTime? LastActivityAt { get; set; }
+    public List<DashboardStatusMetricVm> JobStatusBreakdown { get; set; } = new();
+    public List<DashboardDailyMetricVm> PdfSubmissionTrend { get; set; } = new();
+    public List<DashboardRecentPdfVm> RecentPdfSubmissions { get; set; } = new();
+    public List<DashboardAuditActivityVm> RecentActivity { get; set; } = new();
+}
+
+public class DashboardStatusMetricVm
+{
+    public string Status { get; set; } = string.Empty;
+    public int Count { get; set; }
+}
+
+public class DashboardDailyMetricVm
+{
+    public DateTime Date { get; set; }
+    public int Count { get; set; }
+}
+
+public class DashboardRecentPdfVm
+{
+    public int Id { get; set; }
+    public string BillOfLadingNumber { get; set; } = string.Empty;
+    public string SourceFileName { get; set; } = string.Empty;
+    public string SubmittedByUserId { get; set; } = string.Empty;
+    public DateTime SubmittedAt { get; set; }
+    public bool IsActive { get; set; }
+}
+
+public class DashboardAuditActivityVm
+{
+    public string Action { get; set; } = string.Empty;
+    public string TargetEntity { get; set; } = string.Empty;
+    public string Notes { get; set; } = string.Empty;
+    public string PerformedByName { get; set; } = string.Empty;
+    public DateTime Timestamp { get; set; }
 }
 
 public class ComparisonJobListItemVm

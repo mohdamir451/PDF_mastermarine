@@ -45,6 +45,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<IComparisonService, ComparisonService>();
 builder.Services.AddScoped<IExportService, ExcelExportService>();
+builder.Services.AddSingleton<IDownloadDiagnosticLogStore, FileDownloadDiagnosticLogStore>();
 
 builder.Services.AddScoped<IClaimsTransformation, PermissionClaimsTransformation>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();

@@ -16,36 +16,49 @@ using Microsoft.Extensions.Configuration;
 namespace PdfDataComparison.Admin.Controllers;
 
 [Authorize(Policy = PermissionCatalog.ComparisonJobsView)]
-public class ComparisonJobsController(IComparisonService comparisonService, ApplicationDbContext dbContext, IExportService exportService, IConfiguration configuration, IAuditService auditService) : Controller
+public class ComparisonJobsController(
+    IComparisonService comparisonService,
+    ApplicationDbContext dbContext,
+    IExportService exportService,
+    IConfiguration configuration,
+    IAuditService auditService,
+    IDownloadDiagnosticLogStore diagnosticLogStore,
+    ILogger<ComparisonJobsController> logger) : Controller
 {
     public async Task<IActionResult> Index(string? search, int page = 1)
     {
         var jobs = await comparisonService.GetJobsAsync(search, page, 10);
-        var submissions = await dbContext.PdfComparisonSubmissions
-            .OrderByDescending(x => x.SubmittedAt)
-            .Select(x => new PdfComparisonSubmissionListItemVm
-            {
-                Id = x.Id,
-                BillOfLadingNumber = x.BillOfLadingNumber,
-                PayloadJson = x.PayloadJson,
-                SourceFileName = x.SourceFileName,
-                SubmittedByUserId = x.SubmittedByUserId,
-                SubmittedAt = x.SubmittedAt,
-                IsActive = x.IsActive
-            })
-            .ToListAsync();
-
-        foreach (var submission in submissions)
-        {
-            var exportRows = TryBuildExportRows(submission.PayloadJson);
-            submission.TotalFields = exportRows.Count;
-            submission.IssueCount = exportRows.Count(x => !x.IsMatch);
-        }
 
         return View(new ComparisonJobsIndexVm
         {
-            Jobs = jobs,
-            PdfSubmissions = submissions
+            Jobs = jobs
+        });
+    }
+
+    public async Task<IActionResult> SubmittedPdfData()
+    {
+        return View(await GetPdfSubmissionListItemsAsync());
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ActiveBillOfLadingExists(string billOfLadingNumber)
+    {
+        var normalizedBillOfLadingNumber = NormalizeToken(billOfLadingNumber);
+        if (string.IsNullOrWhiteSpace(normalizedBillOfLadingNumber))
+        {
+            return Ok(new { exists = false });
+        }
+
+        var activeSubmissions = await dbContext.PdfComparisonSubmissions
+            .Where(x => x.IsActive)
+            .Select(x => new { x.Id, x.BillOfLadingNumber })
+            .ToListAsync();
+
+        var existing = activeSubmissions.FirstOrDefault(x => NormalizeToken(x.BillOfLadingNumber) == normalizedBillOfLadingNumber);
+        return Ok(new
+        {
+            exists = existing != null,
+            jobId = existing == null ? string.Empty : $"PDF-JOB-{existing.Id:D5}"
         });
     }
 
@@ -158,7 +171,7 @@ public class ComparisonJobsController(IComparisonService comparisonService, Appl
         {
             message = "PDF comparison saved successfully.",
             submissionId = submission.Id,
-            redirectUrl = Url.Action(nameof(Index))
+            redirectUrl = Url.Action(nameof(SubmittedPdfData))
         });
     }
 
@@ -166,45 +179,179 @@ public class ComparisonJobsController(IComparisonService comparisonService, Appl
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DownloadSelectedPdfSubmissionExcel(List<int> selectedPdfSubmissionIds)
     {
+        var errorReference = HttpContext.TraceIdentifier;
+
         if (selectedPdfSubmissionIds == null || selectedPdfSubmissionIds.Count == 0)
         {
             return BadRequest("Select at least one submitted PDF data row.");
         }
 
         var selectedIds = selectedPdfSubmissionIds.Distinct().ToList();
-        var submissions = await dbContext.PdfComparisonSubmissions
-            .Where(x => x.IsActive && selectedIds.Contains(x.Id))
-            .OrderBy(x => x.Id)
-            .ToListAsync();
-
-        if (submissions.Count == 0) return NotFound();
-
-        var selectedExports = new List<IReadOnlyCollection<(string Field, string ApiValue, string PdfValue, bool IsMatch)>>();
-        foreach (var submission in submissions)
+        try
         {
-            var exportRows = TryBuildExportRows(submission.PayloadJson);
-            if (exportRows.Count > 0)
+            logger.LogInformation(
+                "Selected PDF Excel ZIP download started. ErrorReference={ErrorReference}; SelectedIds={SelectedIds}; User={User}",
+                errorReference,
+                string.Join(",", selectedIds),
+                User.Identity?.Name ?? "Unknown");
+            await WriteDownloadDiagnosticAsync(
+                "Info",
+                "Selected PDF Excel ZIP download started.",
+                errorReference,
+                selectedIds);
+
+            var activeSubmissions = await dbContext.PdfComparisonSubmissions
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.Id)
+                .ToListAsync();
+
+            var selectedIdSet = selectedIds.ToHashSet();
+            var submissions = activeSubmissions
+                .Where(x => selectedIdSet.Contains(x.Id))
+                .ToList();
+
+            if (submissions.Count == 0)
             {
-                selectedExports.Add(exportRows);
+                logger.LogWarning(
+                    "Selected PDF Excel ZIP download found no active submissions. ErrorReference={ErrorReference}; SelectedIds={SelectedIds}; User={User}",
+                    errorReference,
+                    string.Join(",", selectedIds),
+                    User.Identity?.Name ?? "Unknown");
+                await WriteDownloadDiagnosticAsync(
+                    "Warning",
+                    "No active submitted PDF records were found for the selected rows.",
+                    errorReference,
+                    selectedIds);
+                return NotFound("No active submitted PDF records were found for the selected rows.");
             }
-        }
 
-        if (selectedExports.Count == 0)
+            var selectedExports = new List<IReadOnlyCollection<(string Field, string ApiValue, string PdfValue, bool IsMatch)>>();
+            foreach (var submission in submissions)
+            {
+                var exportRows = TryBuildExportRows(submission.PayloadJson ?? string.Empty);
+                logger.LogInformation(
+                    "Selected PDF export rows parsed. ErrorReference={ErrorReference}; SubmissionId={SubmissionId}; FieldCount={FieldCount}; PayloadLength={PayloadLength}",
+                    errorReference,
+                    submission.Id,
+                    exportRows.Count,
+                    submission.PayloadJson?.Length ?? 0);
+                await WriteDownloadDiagnosticAsync(
+                    "Info",
+                    $"Parsed submission {submission.Id}. Fields={exportRows.Count}; PayloadLength={submission.PayloadJson?.Length ?? 0}.",
+                    errorReference,
+                    selectedIds,
+                    new[] { submission.Id });
+
+                if (exportRows.Count > 0)
+                {
+                    selectedExports.Add(exportRows);
+                }
+            }
+
+            if (selectedExports.Count == 0)
+            {
+                logger.LogWarning(
+                    "Selected PDF Excel ZIP download had no valid export rows. ErrorReference={ErrorReference}; SubmissionIds={SubmissionIds}",
+                    errorReference,
+                    string.Join(",", submissions.Select(x => x.Id)));
+                await WriteDownloadDiagnosticAsync(
+                    "Warning",
+                    "Selected comparison data is empty or invalid.",
+                    errorReference,
+                    selectedIds,
+                    submissions.Select(x => x.Id));
+                return BadRequest("Selected comparison data is empty or invalid.");
+            }
+
+            var zipBytes = await BuildComparisonZipAsync(selectedExports);
+            var downloadName = $"comparison-files-selected-{DateTime.UtcNow:yyyyMMddHHmmss}.zip";
+
+            try
+            {
+                await auditService.LogAsync(
+                    "PdfComparisonExcelDownloaded",
+                    "PdfComparisonSubmissions",
+                    $"Downloaded Excel ZIP for active PDF submissions: {string.Join(", ", submissions.Select(x => x.Id))}",
+                    User.FindFirstValue(ClaimTypes.NameIdentifier),
+                    User.Identity?.Name ?? "Unknown");
+            }
+            catch (Exception auditException)
+            {
+                logger.LogError(
+                    auditException,
+                    "Audit logging failed after selected PDF Excel ZIP generation. ErrorReference={ErrorReference}; SubmissionIds={SubmissionIds}",
+                    errorReference,
+                    string.Join(",", submissions.Select(x => x.Id)));
+                await WriteDownloadDiagnosticAsync(
+                    "Error",
+                    "Audit logging failed after selected PDF Excel ZIP generation.",
+                    errorReference,
+                    selectedIds,
+                    submissions.Select(x => x.Id),
+                    auditException);
+            }
+
+            logger.LogInformation(
+                "Selected PDF Excel ZIP download completed. ErrorReference={ErrorReference}; SubmissionIds={SubmissionIds}; ZipBytes={ZipBytes}",
+                errorReference,
+                string.Join(",", submissions.Select(x => x.Id)),
+                zipBytes.Length);
+            await WriteDownloadDiagnosticAsync(
+                "Info",
+                $"Selected PDF Excel ZIP download completed. ZipBytes={zipBytes.Length}.",
+                errorReference,
+                selectedIds,
+                submissions.Select(x => x.Id));
+
+            return File(zipBytes, "application/zip", downloadName);
+        }
+        catch (Exception ex)
         {
-            return BadRequest("Selected comparison data is empty or invalid.");
+            logger.LogError(
+                ex,
+                "Selected PDF Excel ZIP download failed. ErrorReference={ErrorReference}; SelectedIds={SelectedIds}; User={User}",
+                errorReference,
+                string.Join(",", selectedIds),
+                User.Identity?.Name ?? "Unknown");
+            await WriteDownloadDiagnosticAsync(
+                "Error",
+                "Selected PDF Excel ZIP download failed.",
+                errorReference,
+                selectedIds,
+                exception: ex);
+
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                $"Unable to download selected Excel ZIP. Error reference: {errorReference}");
         }
+    }
 
-        var zipBytes = await BuildComparisonZipAsync(selectedExports);
-        var downloadName = $"comparison-files-selected-{DateTime.UtcNow:yyyyMMddHHmmss}.zip";
-
-        await auditService.LogAsync(
-            "PdfComparisonExcelDownloaded",
-            "PdfComparisonSubmissions",
-            $"Downloaded Excel ZIP for active PDF submissions: {string.Join(", ", submissions.Select(x => x.Id))}",
-            User.FindFirstValue(ClaimTypes.NameIdentifier),
-            User.Identity?.Name ?? "Unknown");
-
-        return File(zipBytes, "application/zip", downloadName);
+    private async Task WriteDownloadDiagnosticAsync(
+        string level,
+        string message,
+        string errorReference,
+        IEnumerable<int>? selectedIds = null,
+        IEnumerable<int>? submissionIds = null,
+        Exception? exception = null)
+    {
+        try
+        {
+            await diagnosticLogStore.WriteAsync(new DownloadDiagnosticLogEntryVm
+            {
+                TimestampUtc = DateTime.UtcNow,
+                Level = level,
+                ErrorReference = errorReference,
+                Message = message,
+                SelectedIds = selectedIds == null ? string.Empty : string.Join(",", selectedIds),
+                SubmissionIds = submissionIds == null ? string.Empty : string.Join(",", submissionIds),
+                UserName = User.Identity?.Name ?? "Unknown",
+                Exception = exception?.ToString() ?? string.Empty
+            });
+        }
+        catch (Exception logException)
+        {
+            logger.LogError(logException, "Failed to write download diagnostic log. ErrorReference={ErrorReference}", errorReference);
+        }
     }
 
     [HttpPost]
@@ -560,7 +707,7 @@ public class ComparisonJobsController(IComparisonService comparisonService, Appl
         for (var i = 0; i < headers.Count; i++)
         {
             var header = headers[i];
-            ws.Cell(1, i + 1).Value = header;
+            ws.Cell(1, i + 1).Value = ToSafeExcelText(header);
         }
 
         var rowIndex = 2;
@@ -573,16 +720,52 @@ public class ComparisonJobsController(IComparisonService comparisonService, Appl
 
             for (var i = 0; i < headers.Count; i++)
             {
-                ws.Cell(rowIndex, i + 1).Value = ResolveApiValueForHeader(headers[i], rowLookup);
+                ws.Cell(rowIndex, i + 1).Value = ToSafeExcelText(ResolveApiValueForHeader(headers[i], rowLookup));
             }
 
             rowIndex++;
         }
 
-        ws.Columns().AdjustToContents();
+        ApplySafeWorkbookLayout(ws, headers.Count);
         using var ms = new MemoryStream();
         workbook.SaveAs(ms);
         return ms.ToArray();
+    }
+
+    private static string ToSafeExcelText(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return string.Empty;
+
+        var safeChars = value
+            .Where(c => c == '\t' || c == '\n' || c == '\r' || !char.IsControl(c))
+            .ToArray();
+
+        var safeValue = new string(safeChars);
+        return safeValue.Length <= 32767 ? safeValue : safeValue[..32767];
+    }
+
+    private static void ApplySafeWorkbookLayout(IXLWorksheet ws, int columnCount)
+    {
+        if (columnCount <= 0) return;
+
+        var usedRange = ws.RangeUsed();
+        if (usedRange != null)
+        {
+            usedRange.Style.Alignment.WrapText = true;
+            usedRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
+        }
+
+        var headerRange = ws.Range(1, 1, 1, columnCount);
+        headerRange.Style.Font.Bold = true;
+        headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#EEF2F7");
+        headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+        for (var column = 1; column <= columnCount; column++)
+        {
+            ws.Column(column).Width = columnCount > 20 ? 18 : 24;
+        }
+
+        ws.SheetView.FreezeRows(1);
     }
 
     private static string ResolveApiValueForHeader(string header, IReadOnlyDictionary<string, string> rowLookup)
@@ -767,6 +950,32 @@ public class ComparisonJobsController(IComparisonService comparisonService, Appl
     private static string PreferActualPdfValue(string? apiValue, string? pdfValue)
     {
         return !string.IsNullOrWhiteSpace(pdfValue) ? pdfValue : apiValue ?? string.Empty;
+    }
+
+    private async Task<List<PdfComparisonSubmissionListItemVm>> GetPdfSubmissionListItemsAsync()
+    {
+        var submissions = await dbContext.PdfComparisonSubmissions
+            .OrderByDescending(x => x.SubmittedAt)
+            .Select(x => new PdfComparisonSubmissionListItemVm
+            {
+                Id = x.Id,
+                BillOfLadingNumber = x.BillOfLadingNumber,
+                PayloadJson = x.PayloadJson,
+                SourceFileName = x.SourceFileName,
+                SubmittedByUserId = x.SubmittedByUserId,
+                SubmittedAt = x.SubmittedAt,
+                IsActive = x.IsActive
+            })
+            .ToListAsync();
+
+        foreach (var submission in submissions)
+        {
+            var exportRows = TryBuildExportRows(submission.PayloadJson);
+            submission.TotalFields = exportRows.Count;
+            submission.IssueCount = exportRows.Count(x => !x.IsMatch);
+        }
+
+        return submissions;
     }
 
     private static readonly string[] ContainerHeaders =

@@ -2,10 +2,6 @@
 @{
     ViewData["Title"] = "PDF Comparison Jobs";
     ViewData["Subtitle"] = "Track job intake, status, and comparison readiness.";
-    var searchQuery = Context.Request.Query["search"].ToString();
-    var hasServerFilter = !string.IsNullOrWhiteSpace(searchQuery);
-    var activePdfSubmissions = Model.PdfSubmissions.Where(x => x.IsActive).ToList();
-    var inactivePdfSubmissions = Model.PdfSubmissions.Where(x => !x.IsActive).ToList();
 }
 
 <section class="page-hero">
@@ -15,6 +11,11 @@
     </div>
     <span class="badge neutral">@Model.Jobs.TotalCount tracked jobs</span>
 </section>
+
+<nav class="workspace-nav" aria-label="Comparison workspace sections">
+    <a href="#pdfCompareSection">Validate PDF</a>
+    <a asp-action="SubmittedPdfData">Saved PDF Data</a>
+</nav>
 
 <section class="card" id="pdfCompareSection">
     <h3 class="card-title">PDF API Compare</h3>
@@ -161,243 +162,12 @@
 </section>
 
 <section class="card">
-    <div class="action-bar submitted-data-head">
+    <div class="action-bar">
         <div>
-            <h3 class="card-title">Submitted PDF Data</h3>
-            <p class="form-help">Stored PDF validation rows. Active records are the latest saved version for each bill of lading number.</p>
+            <h3 class="card-title">Saved PDF Data</h3>
+            <p class="form-help">Submitted PDF validation records now live on a dedicated review page.</p>
         </div>
-        <div class="table-tools">
-            <div class="segmented-control" role="group" aria-label="Submitted PDF data mode">
-                <button type="button" class="segment-btn is-active" data-pdf-mode="active">Active Records</button>
-                <button type="button" class="segment-btn" data-pdf-mode="history">Inactive History</button>
-            </div>
-            <span class="badge success">@activePdfSubmissions.Count active</span>
-            <span class="badge neutral">@inactivePdfSubmissions.Count replaced</span>
-            <button type="button" class="btn btn-ghost" data-density-target="jobsTableWrap" aria-pressed="false">Compact Rows</button>
-        </div>
-    </div>
-
-    <div class="loading-panel" data-loading-panel>
-        <div class="skeleton-row"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>
-        <div class="skeleton-row"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>
-    </div>
-
-    <div class="data-panel" data-data-panel hidden>
-        @if (Model.PdfSubmissions.Any())
-        {
-            <form asp-action="DownloadSelectedPdfSubmissionExcel" method="post" id="selectedPdfDownloadForm">
-                @Html.AntiForgeryToken()
-                <div class="submitted-filter-grid">
-                    <div class="form-group">
-                        <label for="jobsQuickFilter">Search</label>
-                        <input id="jobsQuickFilter" class="table-quick-filter" type="search" placeholder="Job ID, BL number, file, user" />
-                    </div>
-                    <div class="form-group">
-                        <label for="submittedStatusFilter">Validation</label>
-                        <select id="submittedStatusFilter">
-                            <option value="all">All statuses</option>
-                            <option value="complete">Complete</option>
-                            <option value="needs-review">Needs Review</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="submittedDateFrom">From</label>
-                        <input id="submittedDateFrom" type="date" />
-                    </div>
-                    <div class="form-group">
-                        <label for="submittedDateTo">To</label>
-                        <input id="submittedDateTo" type="date" />
-                    </div>
-                    <div class="submitted-export-actions">
-                        <span class="badge neutral visible-count" id="jobsVisibleCount" aria-live="polite">0/0</span>
-                        <span class="badge info" id="selectedPdfCount">0 selected</span>
-                        <select id="submittedPageSize" aria-label="Rows per page">
-                            <option value="10">10 rows</option>
-                            <option value="25" selected>25 rows</option>
-                            <option value="50">50 rows</option>
-                        </select>
-                        <button type="button" class="btn btn-ghost" id="clearSubmittedFiltersBtn">Clear</button>
-                        <button type="submit" class="btn btn-primary" id="downloadSelectedPdfExcelBtn" disabled>Download Excel</button>
-                    </div>
-                </div>
-                <div class="alert warning" id="selectedPdfDownloadError" hidden>Select at least one submitted PDF data row.</div>
-                <div class="alert success" id="submittedSaveSuccess" hidden></div>
-                <div class="table-wrap" id="jobsTableWrap">
-                    <table class="table" id="jobsTable" data-sortable>
-                    <thead>
-                        <tr>
-                            <th>
-                                <label class="checkbox-row compact-check">
-                                    <input id="selectAllPdfSubmissions" type="checkbox" aria-label="Select all PDF submissions" />
-                                </label>
-                            </th>
-                            <th><button type="button" class="sort-btn" data-sort-col="1">Job ID</button></th>
-                            <th><button type="button" class="sort-btn" data-sort-col="2">Bill Of Lading Number</button></th>
-                            <th>All Information JSON</th>
-                            <th><button type="button" class="sort-btn" data-sort-col="4">Source File</button></th>
-                            <th><button type="button" class="sort-btn" data-sort-col="5">Submitted By</button></th>
-                            <th><button type="button" class="sort-btn" data-sort-col="6">Submitted At</button></th>
-                            <th><button type="button" class="sort-btn" data-sort-col="7">Status</button></th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @foreach (var submission in Model.PdfSubmissions)
-                    {
-                        var submittedDate = submission.SubmittedAt.ToString("yyyy-MM-dd");
-                        var validationKey = submission.IssueCount == 0 ? "complete" : "needs-review";
-                        var lifecycleClass = submission.IsActive ? "success" : "neutral";
-                        var validationClass = submission.IssueCount == 0 ? "success" : "warning";
-                        <tr data-pdf-submission-row
-                            data-active="@submission.IsActive.ToString().ToLowerInvariant()"
-                            data-validation="@validationKey"
-                            data-submitted-date="@submittedDate">
-                            <td>
-                                <label class="checkbox-row compact-check">
-                                    <input class="pdf-submission-check" type="checkbox" name="selectedPdfSubmissionIds" value="@submission.Id" aria-label="Select job PDF-JOB-@submission.Id.ToString("D5")" @(submission.IsActive ? "" : "disabled") />
-                                </label>
-                            </td>
-                            <td><strong>PDF-JOB-@submission.Id.ToString("D5")</strong></td>
-                            <td>@(string.IsNullOrWhiteSpace(submission.BillOfLadingNumber) ? "-" : submission.BillOfLadingNumber)</td>
-                            <td>
-                                <details class="row-menu json-details">
-                                    <summary>View JSON</summary>
-                                    <pre class="json-preview">@submission.PayloadJson</pre>
-                                </details>
-                            </td>
-                            <td>@(string.IsNullOrWhiteSpace(submission.SourceFileName) ? "-" : submission.SourceFileName)</td>
-                            <td>@(string.IsNullOrWhiteSpace(submission.SubmittedByUserId) ? "-" : submission.SubmittedByUserId)</td>
-                            <td>@submission.SubmittedAt.ToString("u")</td>
-                            <td>
-                                <span class="badge @validationClass">@submission.ValidationStatus</span>
-                                <span class="badge @lifecycleClass">@(submission.IsActive ? "Latest Version" : "Replaced")</span>
-                                <span class="field-count-note">@submission.TotalFields fields · @submission.IssueCount issues</span>
-                            </td>
-                            <td>
-                                <button type="button" class="btn btn-ghost btn-small" data-preview-submission>View</button>
-                            </td>
-                        </tr>
-                    }
-                    </tbody>
-                </table>
-                </div>
-                <div class="pagination submitted-pagination" aria-label="Submitted PDF data pages">
-                    <button type="button" class="btn btn-ghost btn-small" id="submittedPrevPageBtn">Previous</button>
-                    <span class="badge neutral" id="submittedPageInfo">Page 1 of 1</span>
-                    <button type="button" class="btn btn-ghost btn-small" id="submittedNextPageBtn">Next</button>
-                </div>
-            </form>
-        }
-        else
-        {
-                <div class="empty-state">
-                <div class="empty-state-icon">PDF</div>
-                <h3>No submitted PDF data</h3>
-                <p>Records will appear here after a PDF comparison is saved.</p>
-            </div>
-        }
-    </div>
-</section>
-
-<section class="card">
-    <form method="get" class="action-bar">
-        <div class="filter-bar">
-            <label for="jobsSearch" class="sr-only">Search comparison jobs</label>
-            <input id="jobsSearch" type="search" name="search" value="@searchQuery" placeholder="Search by job number or title" aria-label="Search comparison jobs" />
-            <button type="submit" class="btn btn-secondary">Search</button>
-            <a asp-action="Index" class="btn btn-ghost">Reset</a>
-        </div>
-        <div class="table-tools">
-            @if (hasServerFilter)
-            {
-                <span class="active-filter-chip">Filter: @searchQuery</span>
-            }
-            <label for="queueQuickFilter" class="sr-only">Quick filter loaded rows</label>
-            <input id="queueQuickFilter" class="table-quick-filter" type="search" placeholder="Quick filter visible rows" data-table-search data-table-target="comparisonQueueTable" data-table-count-target="queueVisibleCount" />
-            <span class="badge neutral visible-count" id="queueVisibleCount" aria-live="polite">0/0</span>
-            <button type="button" class="btn btn-ghost" data-density-target="comparisonQueueTableWrap" aria-pressed="false">Compact Rows</button>
-        </div>
-    </form>
-
-    <div class="loading-panel" data-loading-panel>
-        <div class="skeleton-row"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>
-        <div class="skeleton-row"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>
-    </div>
-
-    <div class="data-panel" data-data-panel hidden>
-        @if (Model.Jobs.Items.Any())
-        {
-            <div class="table-wrap" id="comparisonQueueTableWrap">
-                <table class="table" id="comparisonQueueTable" data-sortable>
-                <thead>
-                <tr>
-                    <th><button type="button" class="sort-btn" data-sort-col="0">Job</button></th>
-                    <th><button type="button" class="sort-btn" data-sort-col="1">Title</button></th>
-                    <th><button type="button" class="sort-btn" data-sort-col="2">Status</button></th>
-                    <th><button type="button" class="sort-btn" data-sort-col="3">Created</button></th>
-                    <th>Actions</th>
-                </tr>
-                </thead>
-                <tbody>
-                @foreach (var job in Model.Jobs.Items)
-                {
-                    var statusClass = job.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase)
-                        ? "success"
-                        : job.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase)
-                            ? "warning"
-                            : job.Status.Equals("In Progress", StringComparison.OrdinalIgnoreCase)
-                                ? "info"
-                                : job.Status.Equals("Failed", StringComparison.OrdinalIgnoreCase) || job.Status.Equals("Rejected", StringComparison.OrdinalIgnoreCase)
-                                    ? "danger"
-                                    : "neutral";
-                    <tr>
-                        <td><strong>@job.JobNumber</strong></td>
-                        <td>@job.Title</td>
-                        <td><span class="badge @statusClass">@job.Status</span></td>
-                        <td>@job.CreatedAt.ToString("yyyy-MM-dd")</td>
-                        <td class="actions">
-                            <details class="row-menu">
-                                <summary>Actions</summary>
-                                <div class="row-menu-list">
-                                    <a asp-action="Screen" asp-route-id="@job.Id">Open Job</a>
-                                </div>
-                            </details>
-                        </td>
-                    </tr>
-                }
-                </tbody>
-            </table>
-        </div>
-
-            @if (Model.Jobs.TotalPages > 1)
-            {
-                <nav class="pagination" aria-label="Comparison job pages">
-                    @for (var i = 1; i <= Model.Jobs.TotalPages; i++)
-                    {
-                        if (i == Model.Jobs.Page)
-                        {
-                            <span class="active">@i</span>
-                        }
-                        else
-                        {
-                            <a asp-action="Index" asp-route-page="@i" asp-route-search="@searchQuery">@i</a>
-                        }
-                    }
-                </nav>
-            }
-        }
-        else
-        {
-            <div class="empty-state">
-                <div class="empty-state-icon">CP</div>
-                <h3>No jobs in queue</h3>
-                <p>No comparison jobs matched the current filter.</p>
-                <div class="empty-actions">
-                    <a asp-action="Index" class="btn btn-ghost">Reset Filters</a>
-                    <a asp-controller="Reports" asp-action="Index" class="btn btn-secondary">View Reports</a>
-                </div>
-            </div>
-        }
+        <a asp-action="SubmittedPdfData" class="btn btn-primary">Open Submitted PDF Data</a>
     </div>
 </section>
 
@@ -425,20 +195,58 @@
     </div>
 </div>
 
-<div class="modal-backdrop compare-modal-backdrop" id="savedSubmissionPreviewModal" aria-hidden="true">
-    <div class="modal-card compare-modal-card compare-modal-card-wide">
-        <div class="compare-modal-head">
+<div class="drawer-backdrop" id="savedSubmissionPreviewModal" aria-hidden="true">
+    <aside class="detail-drawer" aria-label="Saved PDF data details">
+        <div class="drawer-head">
             <div>
                 <h3 id="savedPreviewTitle">Saved PDF Data</h3>
                 <p class="form-help" id="savedPreviewMeta">Review saved payload details.</p>
             </div>
             <button type="button" class="btn btn-ghost btn-small" data-close-modal="savedSubmissionPreviewModal">Close</button>
         </div>
-        <div class="compare-modal-body">
-            <pre class="json-preview saved-preview-json" id="savedPreviewJson"></pre>
+        <div class="drawer-tabs" role="tablist" aria-label="Saved data preview tabs">
+            <button type="button" class="drawer-tab is-active" data-saved-preview-tab="summary">Summary</button>
+            <button type="button" class="drawer-tab" data-saved-preview-tab="values">Field Values</button>
+            <button type="button" class="drawer-tab" data-saved-preview-tab="json">Raw JSON</button>
         </div>
-    </div>
+        <div class="drawer-body">
+            <div class="drawer-pane is-active" data-saved-preview-pane="summary">
+                <div class="saved-summary-list" id="savedPreviewSummary"></div>
+            </div>
+            <div class="drawer-pane" data-saved-preview-pane="values">
+                <div class="matrix-filters saved-values-filter">
+                    <input id="savedPreviewSearch" type="search" placeholder="Search saved fields..." />
+                    <label class="checkbox-row compact-check">
+                        <input id="savedPreviewIssuesOnly" type="checkbox" />
+                        <span>Issues only</span>
+                    </label>
+                </div>
+                <div class="table-wrap saved-values-wrap">
+                    <table class="table validation-table">
+                        <thead>
+                            <tr>
+                                <th>Field</th>
+                                <th>Expected API Value</th>
+                                <th>Actual PDF Value</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="savedPreviewFieldBody"></tbody>
+                    </table>
+                </div>
+                <div class="empty-state compact-empty" id="savedPreviewNoValues" hidden>
+                    <h3>No saved fields match</h3>
+                    <p>Adjust search or mismatch filter.</p>
+                </div>
+            </div>
+            <div class="drawer-pane" data-saved-preview-pane="json">
+                <pre class="json-preview saved-preview-json" id="savedPreviewJson"></pre>
+            </div>
+        </div>
+    </aside>
 </div>
+
+<div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
 
 <style>
     #pdfCompareTable td {
@@ -475,9 +283,72 @@
         margin: 0;
     }
 
+    .workspace-nav {
+        position: sticky;
+        top: 0;
+        z-index: 15;
+        display: flex;
+        gap: 8px;
+        margin: -8px 0 16px;
+        padding: 8px 0;
+        background: var(--bg);
+    }
+
+    .workspace-nav a {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text-muted);
+        font-weight: 700;
+        padding: 8px 12px;
+        text-decoration: none;
+        background: var(--surface);
+    }
+
+    .workspace-nav a:hover {
+        color: var(--text);
+        border-color: var(--primary);
+    }
+
     .submitted-data-head {
         align-items: flex-start;
         gap: 16px;
+    }
+
+    .submitted-summary-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        margin: 14px 0 16px;
+    }
+
+    .submitted-summary-card {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+        padding: 12px;
+    }
+
+    .submitted-summary-card span {
+        color: var(--text-muted);
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .submitted-summary-card strong {
+        color: var(--title);
+        display: block;
+        font-size: 22px;
+        margin-top: 6px;
+    }
+
+    .submitted-summary-card.success {
+        border-color: color-mix(in srgb, #16a34a 34%, var(--border));
+    }
+
+    .submitted-summary-card.warning {
+        border-color: color-mix(in srgb, #f59e0b 42%, var(--border));
     }
 
     .segmented-control {
@@ -516,6 +387,17 @@
         margin-bottom: 12px;
     }
 
+    .submitted-sticky-toolbar {
+        position: sticky;
+        top: 48px;
+        z-index: 12;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--surface) 94%, transparent);
+        backdrop-filter: blur(10px);
+    }
+
     .submitted-export-actions {
         align-items: center;
         display: flex;
@@ -532,6 +414,17 @@
         white-space: nowrap;
     }
 
+    .status-chip-visual::before {
+        content: "";
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        margin-right: 6px;
+        border-radius: 999px;
+        background: currentColor;
+        vertical-align: middle;
+    }
+
     tr.submitted-row-hidden {
         display: none;
     }
@@ -540,13 +433,179 @@
         background: color-mix(in srgb, var(--surface-muted) 65%, transparent);
     }
 
+    .saved-row-json {
+        display: none;
+    }
+
+    #savedSubmissionPreviewModal.drawer-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        display: none;
+        align-items: stretch;
+        justify-content: flex-end;
+        background: rgba(15, 23, 42, .55);
+    }
+
+    #savedSubmissionPreviewModal.drawer-backdrop.is-open {
+        display: flex;
+    }
+
+    #savedSubmissionPreviewModal.drawer-backdrop.show {
+        display: flex;
+    }
+
+    #savedSubmissionPreviewModal .detail-drawer {
+        position: relative;
+        z-index: 10001;
+        flex: 0 0 760px;
+        width: 760px;
+        max-width: 100vw;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: var(--surface, #ffffff);
+        color: var(--text, #172033);
+        box-shadow: -24px 0 60px rgba(15, 23, 42, .34);
+        border-left: 1px solid var(--border, #dbe5f4);
+    }
+
+    .drawer-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px;
+        border-bottom: 1px solid var(--border, #dbe5f4);
+        background: var(--surface, #ffffff);
+    }
+
+    .drawer-head h3 {
+        color: var(--title);
+        margin: 0;
+    }
+
+    .drawer-tabs {
+        display: flex;
+        gap: 6px;
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--border, #dbe5f4);
+        background: var(--surface-muted, #f4f7fb);
+    }
+
+    .drawer-tab {
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--text-muted);
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+        padding: 8px 12px;
+    }
+
+    .drawer-tab.is-active {
+        border-color: var(--border, #dbe5f4);
+        background: var(--surface, #ffffff);
+        color: var(--text, #172033);
+    }
+
+    .drawer-body {
+        min-height: 0;
+        flex: 1;
+        overflow: auto;
+        padding: 16px;
+        background: var(--surface, #ffffff);
+    }
+
+    .drawer-pane {
+        display: none;
+    }
+
+    .drawer-pane.is-active {
+        display: block;
+    }
+
+    .saved-summary-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .saved-summary-item {
+        display: grid;
+        grid-template-columns: 190px minmax(0, 1fr);
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid var(--border, #dbe5f4);
+        border-radius: 8px;
+        background: var(--surface, #ffffff);
+    }
+
+    .saved-summary-item span {
+        color: var(--text-muted);
+        font-weight: 700;
+    }
+
+    .saved-values-filter {
+        margin-bottom: 12px;
+    }
+
+    .saved-values-wrap {
+        max-height: calc(100vh - 250px);
+    }
+
+    .toast-stack {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        z-index: 100;
+        display: grid;
+        gap: 10px;
+        width: min(380px, calc(100vw - 32px));
+    }
+
+    .app-toast {
+        border: 1px solid var(--border);
+        border-left: 4px solid var(--primary);
+        border-radius: 8px;
+        background: var(--surface);
+        box-shadow: var(--shadow-lg);
+        color: var(--text);
+        padding: 12px 14px;
+        font-weight: 700;
+    }
+
     @@media (max-width: 1080px) {
+        .submitted-summary-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
         .submitted-filter-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
         .submitted-export-actions {
             justify-content: flex-start;
+        }
+    }
+
+    @@media (max-width: 720px) {
+        .workspace-nav,
+        .submitted-data-head,
+        .submitted-export-actions {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .submitted-summary-grid,
+        .submitted-filter-grid {
+            grid-template-columns: 1fr;
+        }
+
+        #savedSubmissionPreviewModal .detail-drawer {
+            flex-basis: 100vw;
+            width: 100vw;
         }
     }
 
@@ -1094,6 +1153,8 @@
     const submittedNextPageBtn = document.getElementById('submittedNextPageBtn');
     const submittedPageInfo = document.getElementById('submittedPageInfo');
     const clearSubmittedFiltersBtn = document.getElementById('clearSubmittedFiltersBtn');
+    const clearSubmittedFiltersEmptyBtn = document.getElementById('clearSubmittedFiltersEmptyBtn');
+    const submittedNoResults = document.getElementById('submittedNoResults');
     const selectedPdfCount = document.getElementById('selectedPdfCount');
     const downloadSelectedPdfExcelBtn = document.getElementById('downloadSelectedPdfExcelBtn');
     const submittedSaveSuccess = document.getElementById('submittedSaveSuccess');
@@ -1101,6 +1162,14 @@
     const savedPreviewTitle = document.getElementById('savedPreviewTitle');
     const savedPreviewMeta = document.getElementById('savedPreviewMeta');
     const savedPreviewJson = document.getElementById('savedPreviewJson');
+    const savedPreviewSummary = document.getElementById('savedPreviewSummary');
+    const savedPreviewFieldBody = document.getElementById('savedPreviewFieldBody');
+    const savedPreviewSearch = document.getElementById('savedPreviewSearch');
+    const savedPreviewIssuesOnly = document.getElementById('savedPreviewIssuesOnly');
+    const savedPreviewNoValues = document.getElementById('savedPreviewNoValues');
+    const savedPreviewTabs = Array.from(document.querySelectorAll('[data-saved-preview-tab]'));
+    const savedPreviewPanes = Array.from(document.querySelectorAll('[data-saved-preview-pane]'));
+    const toastStack = document.getElementById('toastStack');
     const summaryTotalFields = document.getElementById('summaryTotalFields');
     const summaryMatches = document.getElementById('summaryMatches');
     const summaryAccuracy = document.getElementById('summaryAccuracy');
@@ -1115,6 +1184,32 @@
     let selectedRow = null;
 
     const normalizeValue = (value) => (value ?? '').toString().trim().toLowerCase();
+    const getDownloadFileName = (disposition, fallback) => {
+        const parts = (disposition || '').split(';').map((part) => part.trim());
+        const encodedPart = parts.find((part) => part.toLowerCase().startsWith('filename*='));
+        if (encodedPart) {
+            const encodedValue = encodedPart.substring(encodedPart.indexOf('=') + 1).replace(/^UTF-8''/i, '').replace(/^"|"$/g, '');
+            try { return decodeURIComponent(encodedValue); } catch { return encodedValue || fallback; }
+        }
+
+        const plainPart = parts.find((part) => part.toLowerCase().startsWith('filename='));
+        if (plainPart) {
+            return plainPart.substring(plainPart.indexOf('=') + 1).replace(/^"|"$/g, '') || fallback;
+        }
+
+        return fallback;
+    };
+
+    const showToast = (message) => {
+        if (!toastStack) return;
+        const toast = document.createElement('div');
+        toast.className = 'app-toast';
+        toast.textContent = message;
+        toastStack.appendChild(toast);
+        window.setTimeout(() => {
+            toast.remove();
+        }, 5200);
+    };
 
     const setStatus = (text, cls = 'neutral') => {
         statusBadge.textContent = text;
@@ -1241,12 +1336,14 @@
     const openModal = (modal) => {
         if (!modal) return;
         modal.classList.add('show');
+        modal.classList.add('is-open');
         modal.setAttribute('aria-hidden', 'false');
     };
 
     const closeModal = (modal) => {
         if (!modal) return;
         modal.classList.remove('show');
+        modal.classList.remove('is-open');
         modal.setAttribute('aria-hidden', 'true');
     };
 
@@ -1622,6 +1719,7 @@
         if (submittedPageInfo) submittedPageInfo.textContent = `Page ${submittedCurrentPage} of ${totalPages}`;
         if (submittedPrevPageBtn) submittedPrevPageBtn.disabled = submittedCurrentPage <= 1;
         if (submittedNextPageBtn) submittedNextPageBtn.disabled = submittedCurrentPage >= totalPages;
+        if (submittedNoResults) submittedNoResults.hidden = matchedRows.length > 0;
         syncSelectAllPdfSubmissions();
     };
 
@@ -1629,16 +1727,117 @@
         const row = button.closest('[data-pdf-submission-row]');
         if (!row) return;
         const cells = row.querySelectorAll('td');
-        const payload = row.querySelector('.json-preview');
-        if (savedPreviewTitle) savedPreviewTitle.textContent = cells[1] ? cells[1].innerText.trim() : 'Saved PDF Data';
+        const payload = row.querySelector('.saved-row-json');
+        const jobId = cells[1] ? cells[1].innerText.trim() : 'Saved PDF Data';
+        const bl = cells[2] ? cells[2].innerText.trim() : '-';
+        const sourceFile = cells[3] ? cells[3].innerText.trim() : '-';
+        const submitted = cells[4] ? cells[4].innerText.trim().replace(/\s+/g, ' ') : '-';
+        const status = cells[5] ? cells[5].innerText.trim().replace(/\s+/g, ' ') : '';
+        const rawJson = payload ? payload.textContent || '' : '';
+        const savedRows = parseSavedRows(rawJson);
+
+        if (savedPreviewTitle) savedPreviewTitle.textContent = jobId;
         if (savedPreviewMeta) {
-            const bl = cells[2] ? cells[2].innerText.trim() : '-';
-            const status = cells[7] ? cells[7].innerText.trim().replace(/\s+/g, ' ') : '';
             savedPreviewMeta.textContent = `BL ${bl} · ${status}`;
         }
-        if (savedPreviewJson) savedPreviewJson.textContent = payload ? payload.textContent || '' : '';
+        if (savedPreviewJson) savedPreviewJson.textContent = formatJson(rawJson);
+        renderSavedSummary({ jobId, bl, sourceFile, submitted, status, rowCount: savedRows.length });
+        renderSavedFieldRows(savedRows);
+        setSavedPreviewTab('summary');
         openModal(savedSubmissionPreviewModal);
     };
+
+    const parseSavedRows = (rawJson) => {
+        try {
+            const parsed = JSON.parse(rawJson || '[]');
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    };
+
+    const formatJson = (rawJson) => {
+        try {
+            return JSON.stringify(JSON.parse(rawJson || '[]'), null, 2);
+        } catch {
+            return rawJson || '';
+        }
+    };
+
+    const renderSavedSummary = (summary) => {
+        if (!savedPreviewSummary) return;
+        const items = [
+            ['Job ID', summary.jobId],
+            ['Bill Of Lading Number', summary.bl],
+            ['Source File', summary.sourceFile],
+            ['Submitted', summary.submitted],
+            ['Status', summary.status],
+            ['Saved Fields', summary.rowCount]
+        ];
+        savedPreviewSummary.innerHTML = items.map(([label, value]) => `
+            <div class="saved-summary-item">
+                <span>${escapeHtml(label)}</span>
+                <strong>${escapeHtml(String(value || '-'))}</strong>
+            </div>
+        `).join('');
+    };
+
+    const getSavedRowState = (row) => {
+        const apiValue = row.apiValue ?? row.ApiValue ?? '';
+        const pdfValue = row.pdfValue ?? row.PdfValue ?? '';
+        if (!normalizeValue(apiValue)) {
+            return normalizeValue(pdfValue) ? { isMatch: true, text: 'Manual Value' } : { isMatch: false, text: 'Needs Review' };
+        }
+        return normalizeValue(apiValue) === normalizeValue(pdfValue)
+            ? { isMatch: true, text: 'Match' }
+            : { isMatch: false, text: 'Needs Review' };
+    };
+
+    const renderSavedFieldRows = (rows) => {
+        if (!savedPreviewFieldBody) return;
+        savedPreviewFieldBody.innerHTML = rows.map((row) => {
+            const field = row.field ?? row.Field ?? '';
+            const apiValue = row.apiValue ?? row.ApiValue ?? '';
+            const pdfValue = row.pdfValue ?? row.PdfValue ?? '';
+            const state = getSavedRowState(row);
+            return `
+                <tr data-saved-preview-field-row data-match="${state.isMatch ? 'true' : 'false'}">
+                    <td><strong>${escapeHtml(field)}</strong></td>
+                    <td>${escapeHtml(apiValue || '-')}</td>
+                    <td>${escapeHtml(pdfValue || '-')}</td>
+                    <td><span class="match-indicator ${state.isMatch ? 'ok' : 'bad'}">${escapeHtml(state.text)}</span></td>
+                </tr>
+            `;
+        }).join('');
+        applySavedPreviewFilters();
+    };
+
+    const applySavedPreviewFilters = () => {
+        const query = (savedPreviewSearch && savedPreviewSearch.value ? savedPreviewSearch.value : '').trim().toLowerCase();
+        const issuesOnly = savedPreviewIssuesOnly ? savedPreviewIssuesOnly.checked : false;
+        const rows = Array.from(document.querySelectorAll('[data-saved-preview-field-row]'));
+        let visible = 0;
+        rows.forEach((row) => {
+            const matchesQuery = !query || row.innerText.toLowerCase().includes(query);
+            const matchesIssue = !issuesOnly || row.dataset.match === 'false';
+            const shouldShow = matchesQuery && matchesIssue;
+            row.hidden = !shouldShow;
+            if (shouldShow) visible += 1;
+        });
+        if (savedPreviewNoValues) savedPreviewNoValues.hidden = visible > 0;
+    };
+
+    const setSavedPreviewTab = (tabName) => {
+        savedPreviewTabs.forEach((tab) => tab.classList.toggle('is-active', tab.dataset.savedPreviewTab === tabName));
+        savedPreviewPanes.forEach((pane) => pane.classList.toggle('is-active', pane.dataset.savedPreviewPane === tabName));
+    };
+
+    const escapeHtml = (value) => (value ?? '').toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 
     const findActiveBillOfLadingRow = (billOfLadingNumber) => {
         const normalized = normalizeToken(billOfLadingNumber);
@@ -1713,9 +1912,22 @@
         });
     }
 
+    if (clearSubmittedFiltersEmptyBtn) {
+        clearSubmittedFiltersEmptyBtn.addEventListener('click', () => {
+            if (clearSubmittedFiltersBtn) clearSubmittedFiltersBtn.click();
+        });
+    }
+
     document.querySelectorAll('[data-preview-submission]').forEach((button) => {
         button.addEventListener('click', () => showSavedSubmissionPreview(button));
     });
+
+    savedPreviewTabs.forEach((tab) => {
+        tab.addEventListener('click', () => setSavedPreviewTab(tab.dataset.savedPreviewTab || 'summary'));
+    });
+
+    if (savedPreviewSearch) savedPreviewSearch.addEventListener('input', applySavedPreviewFilters);
+    if (savedPreviewIssuesOnly) savedPreviewIssuesOnly.addEventListener('change', applySavedPreviewFilters);
 
     applySubmittedPdfFilters();
 
@@ -1725,8 +1937,10 @@
             const params = new URLSearchParams(savedSummary);
             const id = params.get('savedSubmissionId');
             const bl = params.get('savedBillOfLadingNumber');
-            submittedSaveSuccess.textContent = `Saved successfully${id ? ` as PDF-JOB-${String(id).padStart(5, '0')}` : ''}${bl ? ` for BL ${bl}` : ''}.`;
+            const message = `Saved successfully${id ? ` as PDF-JOB-${String(id).padStart(5, '0')}` : ''}${bl ? ` for BL ${bl}` : ''}.`;
+            submittedSaveSuccess.textContent = message;
             submittedSaveSuccess.hidden = false;
+            showToast(message);
             window.sessionStorage.removeItem('pdfComparisonSavedSummary');
         }
     }
@@ -1757,7 +1971,7 @@
                 if (!res.ok) {
                     const message = await res.text();
                     if (selectedPdfDownloadError) {
-                        selectedPdfDownloadError.textContent = message || 'Unable to download selected Excel ZIP.';
+                        selectedPdfDownloadError.textContent = message || `Unable to download selected Excel ZIP. Server returned ${res.status}.`;
                         selectedPdfDownloadError.hidden = false;
                     }
                     return;
@@ -1765,8 +1979,7 @@
 
                 const blob = await res.blob();
                 const disposition = res.headers.get('Content-Disposition') || '';
-                const match = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^"]+)"?/i);
-                const fileName = match ? decodeURIComponent(match[1] || match[2]) : 'comparison-files-selected.zip';
+                const fileName = getDownloadFileName(disposition, 'comparison-files-selected.zip');
                 const url = window.URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url;
@@ -1816,11 +2029,22 @@
             });
 
             const currentBillOfLadingNumber = getCurrentBillOfLadingNumber(rowsPayload);
-            const existingBillOfLadingRow = findActiveBillOfLadingRow(currentBillOfLadingNumber);
-            if (existingBillOfLadingRow) {
-                const existingJobId = existingBillOfLadingRow.querySelectorAll('td')[1]?.innerText.trim() || 'an active record';
-                const shouldContinue = window.confirm(`Bill Of Lading Number ${currentBillOfLadingNumber} already exists in ${existingJobId}. Saving will mark that record inactive and create a new active record. Continue?`);
-                if (!shouldContinue) return;
+            if (currentBillOfLadingNumber) {
+                try {
+                    const duplicateRes = await fetch(`@Url.Action("ActiveBillOfLadingExists", "ComparisonJobs")?billOfLadingNumber=${encodeURIComponent(currentBillOfLadingNumber)}`, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    if (duplicateRes.ok) {
+                        const duplicatePayload = await duplicateRes.json();
+                        if (duplicatePayload && duplicatePayload.exists) {
+                            const existingJobId = duplicatePayload.jobId || 'an active record';
+                            const shouldContinue = window.confirm(`Bill Of Lading Number ${currentBillOfLadingNumber} already exists in ${existingJobId}. Saving will mark that record inactive and create a new active record. Continue?`);
+                            if (!shouldContinue) return;
+                        }
+                    }
+                } catch {
+                    // Server validation still handles duplicate replacement if the pre-check is unavailable.
+                }
             }
 
             const fd = new FormData();
@@ -1854,9 +2078,11 @@
                 }
 
                 let savedSubmissionId = '';
+                let redirectUrl = '@Url.Action("SubmittedPdfData", "ComparisonJobs")';
                 try {
                     const payload = await res.json();
                     savedSubmissionId = payload && payload.submissionId ? payload.submissionId : '';
+                    redirectUrl = payload && payload.redirectUrl ? payload.redirectUrl : redirectUrl;
                 } catch {
                     // Redirect still works if the response is not JSON.
                 }
@@ -1867,7 +2093,7 @@
                 if (successParams.toString()) {
                     window.sessionStorage.setItem('pdfComparisonSavedSummary', successParams.toString());
                 }
-                window.location.href = '@Url.Action("Index", "ComparisonJobs")';
+                window.location.href = redirectUrl;
             } catch (err) {
                 showError(err && err.message ? err.message : 'Unexpected error while saving comparison.');
             } finally {

@@ -1,3 +1,4 @@
+@model UserCreateVm
 @{
     ViewData["Title"] = "Create User";
     ViewData["Subtitle"] = "Prepare user profile and role assignment details.";
@@ -6,48 +7,66 @@
 <section class="page-hero">
     <div>
         <h2>Create User</h2>
-        <p>Define identity, department, and access settings for a new account.</p>
+        <p>Define identity, department, password, and role assignment for a new account.</p>
     </div>
     <a asp-action="Index" class="btn btn-secondary">Back to Users</a>
 </section>
 
 <section class="card form-card">
-    <div class="alert warning">Create action is not connected to persistence yet. This screen now mirrors the final production form structure.</div>
+    <form asp-action="Create" method="post">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="alert danger"></div>
 
-    <div class="form-grid">
-        <div class="form-group">
-            <label>Full Name</label>
-            <input placeholder="Enter full name" />
-            <span class="form-help">Use the employee's official display name.</span>
+        <div class="form-grid">
+            <div class="form-group">
+                <label asp-for="FullName">Full Name</label>
+                <input asp-for="FullName" placeholder="Enter full name" autocomplete="name" />
+                <span asp-validation-for="FullName" class="field-validation-error"></span>
+                <span class="form-help">Use the employee's official display name.</span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Email">Email Address</label>
+                <input asp-for="Email" type="email" placeholder="name@company.com" autocomplete="email" />
+                <span asp-validation-for="Email" class="field-validation-error"></span>
+                <span class="form-help">Email must be unique in this workspace.</span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Department">Department</label>
+                <input asp-for="Department" placeholder="Operations" />
+                <span asp-validation-for="Department" class="field-validation-error"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="RoleName">Default Role</label>
+                <select asp-for="RoleName">
+                    <option value="">No role</option>
+                    @foreach (var role in Model.AvailableRoles)
+                    {
+                        <option value="@role">@role</option>
+                    }
+                </select>
+                <span asp-validation-for="RoleName" class="field-validation-error"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Password">Password</label>
+                <input asp-for="Password" type="password" autocomplete="new-password" />
+                <span asp-validation-for="Password" class="field-validation-error"></span>
+                <span class="form-help">Minimum 8 characters with a digit and a special character.</span>
+            </div>
+            <div class="form-group">
+                <label asp-for="ConfirmPassword">Confirm Password</label>
+                <input asp-for="ConfirmPassword" type="password" autocomplete="new-password" />
+                <span asp-validation-for="ConfirmPassword" class="field-validation-error"></span>
+            </div>
         </div>
-        <div class="form-group">
-            <label>Email Address</label>
-            <input type="email" placeholder="name@company.com" />
-            <span class="form-help">Email must be unique in this workspace.</span>
-        </div>
-        <div class="form-group">
-            <label>Department</label>
-            <input placeholder="Operations" />
-        </div>
-        <div class="form-group">
-            <label>Default Role</label>
-            <select>
-                <option>Admin</option>
-                <option>Manager</option>
-                <option>Reviewer</option>
-                <option>DataEntry</option>
-                <option>ReadOnly</option>
-            </select>
-        </div>
-    </div>
 
-    <label class="checkbox-row">
-        <input type="checkbox" checked />
-        <span>Activate account immediately</span>
-    </label>
+        <label class="checkbox-row">
+            <input asp-for="IsActive" />
+            <span>Activate account immediately</span>
+        </label>
 
-    <div class="toolbar">
-        <button class="btn btn-primary" type="button" disabled aria-disabled="true">Create User (Pending Backend)</button>
-        <a asp-action="Index" class="btn btn-secondary">Cancel</a>
-    </div>
+        <div class="toolbar">
+            <button class="btn btn-primary" type="submit">Create User</button>
+            <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
 </section>

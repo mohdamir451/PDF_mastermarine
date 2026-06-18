@@ -1,256 +1,751 @@
 @model DashboardVm
+@using System.Globalization
 @{
     ViewData["Title"] = "Dashboard";
-    ViewData["Subtitle"] = "Analytics overview";
+    ViewData["Subtitle"] = "Operational overview from live application tables";
 
-    var processedTotal = Model.CompletedSubmissions + Model.PendingMismatches;
-    var qualityRate = processedTotal > 0 ? (double)Model.CompletedSubmissions / processedTotal * 100 : 0;
-    var activeRate = Model.TotalUsers > 0 ? (double)Model.ActiveUsers / Model.TotalUsers * 100 : 0;
-    var completionRate = Model.TotalComparisonJobs > 0 ? (double)Model.CompletedSubmissions / Model.TotalComparisonJobs * 100 : 0;
-
-    var totalVolume = Math.Max(1, Model.CompletedSubmissions + Model.PendingMismatches + Model.ActiveUsers);
-    var completedShare = (double)Model.CompletedSubmissions / totalVolume * 100;
-    var pendingShare = (double)Model.PendingMismatches / totalVolume * 100;
-    var activeShare = (double)Model.ActiveUsers / totalVolume * 100;
-
-    var trendA = Math.Max(1, Model.TotalComparisonJobs / 4);
-    var trendB = Math.Max(1, Model.TotalComparisonJobs / 3);
-    var trendC = Math.Max(1, Model.TotalComparisonJobs / 2);
-    var trendD = Math.Max(1, Model.ActiveUsers + 2);
-    var trendE = Math.Max(1, Model.PendingMismatches + Model.ActiveUsers);
-    var trendF = Math.Max(1, Model.CompletedSubmissions);
-    var trendPoints = $"{trendA},{trendB},{trendC},{trendD},{trendE},{trendF}";
-
-    var segmentCompleted = $"{completedShare.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}|#4361ee";
-    var segmentPending = $"{pendingShare.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}|#ef4444";
-    var segmentActive = $"{activeShare.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}|#f59e0b";
-    var donutSegments = $"{segmentCompleted},{segmentPending},{segmentActive}";
+    var culture = CultureInfo.InvariantCulture;
+    var activePdfRate = Model.TotalPdfSubmissions > 0 ? (double)Model.ActivePdfSubmissions / Model.TotalPdfSubmissions * 100 : 0;
+    var reviewTotal = Model.CompletePdfSubmissions + Model.PdfSubmissionsNeedingReview;
+    var completeRate = reviewTotal > 0 ? (double)Model.CompletePdfSubmissions / reviewTotal * 100 : 0;
+    var fieldMatchRate = Model.TotalComparisonFields > 0 ? (double)Model.MatchedComparisonFields / Model.TotalComparisonFields * 100 : 0;
+    var activeUserRate = Model.TotalUsers > 0 ? (double)Model.ActiveUsers / Model.TotalUsers * 100 : 0;
+    var maxTrend = Math.Max(1, Model.PdfSubmissionTrend.Any() ? Model.PdfSubmissionTrend.Max(x => x.Count) : 0);
+    var maxStatus = Math.Max(1, Model.JobStatusBreakdown.Any() ? Model.JobStatusBreakdown.Max(x => x.Count) : 0);
 }
 
-<section class="analytics-hero">
-    <div class="analytics-crumbs">
-        <a asp-controller="Dashboard" asp-action="Index">Dashboard</a>
-        <span>/</span>
-        <strong>Analytics</strong>
-    </div>
-    <div class="analytics-title-row">
+<section class="dashboard-workspace">
+    <div class="dashboard-header">
         <div>
-            <h2>Operations Analytics</h2>
-            <p>Real-time overview for platform health, processing quality, and submission throughput.</p>
+            <p class="dashboard-eyebrow">PDF validation operations</p>
+            <h2>Enterprise Validation Dashboard</h2>
+            <span>Data is calculated from users, roles, comparison jobs, comparison fields, PDF submissions, and audit logs.</span>
+            <div class="dashboard-header-pills">
+                <span><b>@Model.TotalComparisonJobs.ToString("N0")</b> Jobs</span>
+                <span><b>@Model.TotalPdfSubmissions.ToString("N0")</b> PDF Records</span>
+                <span><b>@Model.TotalComparisonFields.ToString("N0")</b> Fields</span>
+            </div>
         </div>
-        <span class="badge neutral">Live snapshot</span>
+        <div class="dashboard-header-meta">
+            <span>Last PDF Save</span>
+            <strong>@(Model.LastPdfSubmittedAt?.ToString("yyyy-MM-dd HH:mm") ?? "No PDF submissions")</strong>
+            <small>Last Activity: @(Model.LastActivityAt?.ToString("yyyy-MM-dd HH:mm") ?? "No audit activity")</small>
+        </div>
     </div>
-</section>
 
-<section class="analytics-kpi-strip">
-    <article class="card analytics-kpi primary">
-        <div>
-            <p>Completed Submissions</p>
-            <strong>@Model.CompletedSubmissions.ToString("N0")</strong>
-        </div>
-        <span class="badge success">Healthy</span>
-    </article>
-    <article class="card analytics-kpi warning">
-        <div>
-            <p>Pending Mismatches</p>
+    <div class="dashboard-kpi-grid">
+        <article class="dashboard-kpi-card accent-blue">
+            <span>Active PDF Records</span>
+            <strong>@Model.ActivePdfSubmissions.ToString("N0")</strong>
+            <small>@activePdfRate.ToString("0.0")% of saved PDF records are active</small>
+        </article>
+        <article class="dashboard-kpi-card accent-amber">
+            <span>Records Needing Review</span>
+            <strong>@Model.PdfSubmissionsNeedingReview.ToString("N0")</strong>
+            <small>Active saved PDFs with unresolved validation issues</small>
+        </article>
+        <article class="dashboard-kpi-card accent-green">
+            <span>Completed Records</span>
+            <strong>@Model.CompletePdfSubmissions.ToString("N0")</strong>
+            <small>@completeRate.ToString("0.0")% complete from active validation records</small>
+        </article>
+        <article class="dashboard-kpi-card accent-red">
+            <span>Blocking Field Issues</span>
             <strong>@Model.PendingMismatches.ToString("N0")</strong>
-        </div>
-        <a asp-controller="ComparisonJobs" asp-action="Index" class="btn btn-secondary">Review Now</a>
-    </article>
-    <article class="card analytics-kpi info">
-        <div>
-            <p>Active User Ratio</p>
-            <strong>@activeRate.ToString("0.0")%</strong>
-        </div>
-        <a asp-controller="Users" asp-action="Index" class="btn btn-secondary">Open Users</a>
-    </article>
-</section>
+            <small>@Model.BlockingComparisonFields.ToString("N0") blocking fields configured</small>
+        </article>
+    </div>
 
-<div class="analytics-top-grid">
-    <section class="card analytics-panel">
-        <div class="analytics-panel-head">
-            <h3>Statistics</h3>
-            <span>This week</span>
-        </div>
-        <div class="analytics-stat-pair">
-            <article>
-                <p>Total Users</p>
-                <strong>@Model.TotalUsers.ToString("N0")</strong>
-                <div class="mini-bars">
-                    <span style="height: 9px"></span>
-                    <span style="height: 14px"></span>
-                    <span style="height: 17px"></span>
-                    <span style="height: 12px"></span>
-                    <span style="height: 19px"></span>
-                    <span style="height: 15px"></span>
+    <div class="dashboard-main-grid">
+        <section class="dashboard-panel dashboard-panel-large">
+            <div class="dashboard-panel-head">
+                <div>
+                    <h3>Submission Trend</h3>
+                    <span>PDF submissions grouped from saved records</span>
                 </div>
-            </article>
-            <article>
-                <p>Active Accounts</p>
-                <strong>@Model.ActiveUsers.ToString("N0")</strong>
-                <div class="mini-bars mini-bars-secondary">
-                    <span style="height: 8px"></span>
-                    <span style="height: 12px"></span>
-                    <span style="height: 18px"></span>
-                    <span style="height: 10px"></span>
-                    <span style="height: 17px"></span>
-                    <span style="height: 20px"></span>
-                </div>
-            </article>
-        </div>
-    </section>
-
-    <section class="card analytics-panel">
-        <div class="analytics-panel-head">
-            <h3>Processing Load</h3>
-            <span>Current cycle</span>
-        </div>
-        <div class="analytics-highlight">
-            <strong>@Model.TotalComparisonJobs.ToString("N0")</strong>
-            <span>total comparison jobs</span>
-        </div>
-        <div class="analytics-progress-row">
-            <div class="analytics-progress-track">
-                <div class="analytics-progress-fill" style="width:@completionRate.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"></div>
+                <a asp-controller="ComparisonJobs" asp-action="SubmittedPdfData" class="dashboard-link-button">Open Submitted Data</a>
             </div>
-            <b>@completionRate.ToString("0.0")%</b>
-        </div>
-        <small>Completion rate based on submitted reports.</small>
-    </section>
-
-    <section class="analytics-balance-card">
-        <div class="analytics-balance-top">
-            <h3>Quality Score</h3>
-            <strong>@qualityRate.ToString("0.0")%</strong>
-        </div>
-        <p>Submission pass quality across reviewed mismatches.</p>
-        <div class="analytics-balance-actions">
-            <a asp-controller="ComparisonJobs" asp-action="Index" class="btn btn-secondary">Queue</a>
-            <a asp-controller="Reports" asp-action="Index" class="btn btn-secondary">Reports</a>
-        </div>
-    </section>
-</div>
-
-<div class="mobile-analytics-actions">
-    <button type="button" class="btn btn-secondary" data-mobile-analytics-toggle aria-expanded="true">Hide Extra Analytics</button>
-</div>
-
-<div class="analytics-secondary" data-mobile-analytics-panel>
-<div class="analytics-main-grid">
-    <section class="card analytics-panel analytics-wide">
-        <div class="analytics-panel-head">
-            <h3>Submission Trend</h3>
-            <span>Last 6 periods</span>
-        </div>
-        <div class="trend-chart trend-chart-svg">
-            <svg class="analytics-line-chart" data-points="@trendPoints" role="img" aria-label="Submission trend chart"></svg>
-        </div>
-        <div class="trend-meta">
-            <span>Completed: @Model.CompletedSubmissions.ToString("N0")</span>
-            <span>Pending: @Model.PendingMismatches.ToString("N0")</span>
-            <span>Active ratio: @activeRate.ToString("0.0")%</span>
-        </div>
-    </section>
-
-    <section class="card analytics-panel analytics-log">
-        <div class="analytics-panel-head">
-            <h3>Activity Log</h3>
-            <span>Latest events</span>
-        </div>
-        @if (Model.RecentActivity.Any())
-        {
-            <ul class="activity-log-list">
-                @foreach (var activity in Model.RecentActivity)
+            <div class="dashboard-trend-chart">
+                @foreach (var point in Model.PdfSubmissionTrend)
                 {
-                    <li>
-                        <span class="dot"></span>
-                        <div>
-                            <strong>@activity</strong>
-                            <small>System event</small>
+                    var height = point.Count > 0 ? Math.Max(10, (double)point.Count / maxTrend * 100) : 2;
+                    <div class="dashboard-trend-item">
+                        <div class="dashboard-trend-column">
+                            <div class="dashboard-trend-bar" style="height:@height.ToString("0.##", culture)%"></div>
                         </div>
-                    </li>
+                        <strong>@point.Count.ToString("N0")</strong>
+                        <span>@point.Date.ToString("dd MMM")</span>
+                    </div>
                 }
-            </ul>
-        }
-        else
-        {
-            <div class="empty-state analytics-empty">
-                <div class="empty-state-icon">AL</div>
-                <p>No activity logged yet.</p>
-                <div class="empty-actions">
-                    <a asp-controller="Audit" asp-action="Index" class="btn btn-secondary">Open Audit Logs</a>
+            </div>
+        </section>
+
+        <section class="dashboard-panel">
+            <div class="dashboard-panel-head">
+                <div>
+                    <h3>Validation Health</h3>
+                    <span>Active saved PDF records</span>
+                </div>
+                <strong>@completeRate.ToString("0.0")%</strong>
+            </div>
+            <div class="dashboard-ring" style="--ring-value:@completeRate.ToString("0.##", culture)">
+                <div>
+                    <strong>@Model.CompletePdfSubmissions.ToString("N0")</strong>
+                    <span>complete</span>
                 </div>
             </div>
-        }
-    </section>
-</div>
-
-<div class="analytics-bottom-grid">
-    <section class="card analytics-panel">
-        <div class="analytics-panel-head">
-            <h3>Workload Mix</h3>
-        </div>
-        <div class="analytics-donut-wrap">
-            <div class="analytics-donut" data-donut-segments="@donutSegments" aria-label="Workload distribution">
-                <strong>@qualityRate.ToString("0.0")%</strong>
-                <small>quality</small>
+            <div class="dashboard-split-metrics">
+                <span><b>@Model.CompletePdfSubmissions.ToString("N0")</b> Complete</span>
+                <span><b>@Model.PdfSubmissionsNeedingReview.ToString("N0")</b> Needs review</span>
             </div>
-            <div class="analytics-donut-legend">
-                <span><i style="background:#4361ee"></i>Completed</span>
-                <span><i style="background:#ef4444"></i>Pending</span>
-                <span><i style="background:#f59e0b"></i>Active users</span>
+        </section>
+    </div>
+
+    <div class="dashboard-insight-grid">
+        <section class="dashboard-panel">
+            <div class="dashboard-panel-head">
+                <div>
+                    <h3>PDF Record Lifecycle</h3>
+                    <span>Active and replaced rows from PDF submissions</span>
+                </div>
             </div>
-        </div>
+            <div class="dashboard-progress-stack">
+                <div class="dashboard-progress-row">
+                    <span>Active records</span>
+                    <b>@Model.ActivePdfSubmissions.ToString("N0")</b>
+                </div>
+                <div class="dashboard-track"><div style="width:@activePdfRate.ToString("0.##", culture)%"></div></div>
+                <div class="dashboard-progress-row">
+                    <span>Replaced records</span>
+                    <b>@Model.ReplacedPdfSubmissions.ToString("N0")</b>
+                </div>
+                <div class="dashboard-track muted"><div style="width:@(Model.TotalPdfSubmissions > 0 ? ((double)Model.ReplacedPdfSubmissions / Model.TotalPdfSubmissions * 100).ToString("0.##", culture) : "0")%"></div></div>
+            </div>
+        </section>
 
-        <div class="mix-row">
-            <span>Completed</span>
-            <b>@completedShare.ToString("0.0")%</b>
-        </div>
-        <div class="mix-track"><div class="mix-fill mix-fill-primary" style="width:@completedShare.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"></div></div>
+        <section class="dashboard-panel">
+            <div class="dashboard-panel-head">
+                <div>
+                    <h3>Comparison Fields</h3>
+                    <span>Field-level match quality</span>
+                </div>
+                <strong>@fieldMatchRate.ToString("0.0")%</strong>
+            </div>
+            <div class="dashboard-field-grid">
+                <div><span>Total Fields</span><strong>@Model.TotalComparisonFields.ToString("N0")</strong></div>
+                <div><span>Matched</span><strong>@Model.MatchedComparisonFields.ToString("N0")</strong></div>
+                <div><span>Blocking</span><strong>@Model.BlockingComparisonFields.ToString("N0")</strong></div>
+                <div><span>Pending</span><strong>@Model.PendingMismatches.ToString("N0")</strong></div>
+            </div>
+        </section>
 
-        <div class="mix-row">
-            <span>Pending</span>
-            <b>@pendingShare.ToString("0.0")%</b>
-        </div>
-        <div class="mix-track"><div class="mix-fill mix-fill-danger" style="width:@pendingShare.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"></div></div>
-
-        <div class="mix-row">
-            <span>Active Users</span>
-            <b>@activeShare.ToString("0.0")%</b>
-        </div>
-        <div class="mix-track"><div class="mix-fill mix-fill-warning" style="width:@activeShare.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"></div></div>
-    </section>
-
-    <section class="card analytics-mini-card">
-        <p>Total Users</p>
-        <strong>@Model.TotalUsers.ToString("N0")</strong>
-        <span>User directory size</span>
-    </section>
-
-    <section class="card analytics-mini-card">
-        <p>Total Roles</p>
-        <strong>@Model.TotalRoles.ToString("N0")</strong>
-        <span>Permission roles configured</span>
-    </section>
-
-    <section class="card analytics-mini-card">
-        <p>Jobs In Queue</p>
-        <strong>@Model.TotalComparisonJobs.ToString("N0")</strong>
-        <span>Tracked comparison jobs</span>
-    </section>
-</div>
-
-<section class="card analytics-panel quick-action-panel">
-    <div class="analytics-panel-head">
-        <h3>Quick Actions</h3>
+        <section class="dashboard-panel">
+            <div class="dashboard-panel-head">
+                <div>
+                    <h3>User Access</h3>
+                    <span>User and role tables</span>
+                </div>
+                <a asp-controller="Users" asp-action="Index" class="dashboard-link-button">Users</a>
+            </div>
+            <div class="dashboard-access-grid">
+                <div><span>Total Users</span><strong>@Model.TotalUsers.ToString("N0")</strong></div>
+                <div><span>Active Users</span><strong>@Model.ActiveUsers.ToString("N0")</strong></div>
+                <div><span>Inactive Users</span><strong>@Model.InactiveUsers.ToString("N0")</strong></div>
+                <div><span>Roles</span><strong>@Model.TotalRoles.ToString("N0")</strong></div>
+            </div>
+            <div class="dashboard-track user"><div style="width:@activeUserRate.ToString("0.##", culture)%"></div></div>
+        </section>
     </div>
-    <div class="quick-action-grid">
-        <a asp-controller="ComparisonJobs" asp-action="Index" class="btn btn-secondary">Open Comparison Queue</a>
-        <a asp-controller="Reports" asp-action="Index" class="btn btn-secondary">View Reports</a>
-        <a asp-controller="Users" asp-action="Index" class="btn btn-secondary">Manage Users</a>
-        <a asp-controller="Audit" asp-action="Index" class="btn btn-secondary">Review Audit Logs</a>
-        <a asp-controller="Roles" asp-action="Index" class="btn btn-secondary">Manage Roles</a>
-        <a asp-controller="Settings" asp-action="Index" class="btn btn-secondary">System Settings</a>
+
+    <div class="dashboard-lower-grid">
+        <section class="dashboard-panel">
+            <div class="dashboard-panel-head">
+                <div>
+                    <h3>Comparison Job Status</h3>
+                    <span>Status grouped from comparison jobs</span>
+                </div>
+                <a asp-controller="ComparisonJobs" asp-action="Index" class="dashboard-link-button">Jobs</a>
+            </div>
+            @if (Model.JobStatusBreakdown.Any())
+            {
+                <div class="dashboard-status-list">
+                    @foreach (var status in Model.JobStatusBreakdown)
+                    {
+                        var width = (double)status.Count / maxStatus * 100;
+                        <div class="dashboard-status-row">
+                            <div>
+                                <span>@status.Status</span>
+                                <b>@status.Count.ToString("N0")</b>
+                            </div>
+                            <div class="dashboard-track"><div style="width:@width.ToString("0.##", culture)%"></div></div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="dashboard-empty">No comparison job rows found.</div>
+            }
+        </section>
+
+        <section class="dashboard-panel dashboard-panel-table">
+            <div class="dashboard-panel-head">
+                <div>
+                    <h3>Recent PDF Records</h3>
+                    <span>Latest saved rows from PDF submissions</span>
+                </div>
+            </div>
+            <div class="dashboard-table-wrap">
+                <table class="dashboard-table">
+                    <thead>
+                        <tr>
+                            <th>BL Number</th>
+                            <th>Source File</th>
+                            <th>Saved</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.RecentPdfSubmissions.Any())
+                        {
+                            @foreach (var item in Model.RecentPdfSubmissions)
+                            {
+                                <tr>
+                                    <td>@item.BillOfLadingNumber</td>
+                                    <td>@item.SourceFileName</td>
+                                    <td>@item.SubmittedAt.ToString("yyyy-MM-dd")</td>
+                                    <td><span class="dashboard-pill @(item.IsActive ? "success" : "muted")">@(item.IsActive ? "Active" : "Replaced")</span></td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr><td colspan="4">No PDF submission rows found.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </div>
+
+    <section class="dashboard-panel dashboard-panel-table">
+        <div class="dashboard-panel-head">
+            <div>
+                <h3>Audit Activity</h3>
+                <span>Latest rows from audit logs</span>
+            </div>
+            <a asp-controller="Audit" asp-action="Index" class="dashboard-link-button">Audit Logs</a>
+        </div>
+        <div class="dashboard-table-wrap">
+            <table class="dashboard-table">
+                <thead>
+                    <tr>
+                        <th>Action</th>
+                        <th>Target</th>
+                        <th>Performed By</th>
+                        <th>Time</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.RecentActivity.Any())
+                    {
+                        @foreach (var activity in Model.RecentActivity)
+                        {
+                            <tr>
+                                <td>@activity.Action</td>
+                                <td>@activity.TargetEntity</td>
+                                <td>@activity.PerformedByName</td>
+                                <td>@activity.Timestamp.ToString("yyyy-MM-dd HH:mm")</td>
+                                <td>@activity.Notes</td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr><td colspan="5">No audit log rows found.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
 </section>
-</div>
+
+<style>
+    .dashboard-workspace {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 4px 0 18px;
+    }
+
+    .dashboard-header,
+    .dashboard-panel,
+    .dashboard-kpi-card {
+        border: 1px solid #dbe5f4;
+        background: #fff;
+        box-shadow: 0 14px 34px rgba(15, 23, 42, .06);
+    }
+
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        align-items: stretch;
+        padding: 24px 26px;
+        border-radius: 16px;
+        background:
+            linear-gradient(135deg, rgba(255, 255, 255, .94) 0%, rgba(239, 246, 255, .92) 58%, rgba(232, 240, 255, .9) 100%);
+    }
+
+    .dashboard-eyebrow {
+        margin: 0 0 6px;
+        color: #2563eb;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+    }
+
+    .dashboard-header h2 {
+        margin: 0;
+        color: #061a40;
+        font-size: clamp(28px, 2vw, 38px);
+        line-height: 1.05;
+        font-weight: 900;
+    }
+
+    .dashboard-header span,
+    .dashboard-header-meta small,
+    .dashboard-panel-head span,
+    .dashboard-kpi-card small,
+    .dashboard-progress-row span,
+    .dashboard-field-grid span,
+    .dashboard-access-grid span {
+        color: #50627f;
+    }
+
+    .dashboard-header > div:first-child > span {
+        display: block;
+        max-width: 760px;
+        margin-top: 8px;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    .dashboard-header-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+    }
+
+    .dashboard-header-pills span {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 34px;
+        padding: 0 12px;
+        border: 1px solid #dce7f7;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, .78);
+        color: #33435f;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .dashboard-header-pills b {
+        color: #061a40;
+        font-size: 15px;
+        font-weight: 900;
+    }
+
+    .dashboard-header-meta {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-width: 300px;
+        padding: 18px 20px;
+        border: 1px solid #d9e4f5;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, .86);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .75);
+    }
+
+    .dashboard-header-meta span,
+    .dashboard-header-meta small {
+        display: block;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .dashboard-header-meta strong {
+        display: block;
+        margin: 7px 0;
+        color: #061a40;
+        font-size: 20px;
+        font-weight: 900;
+    }
+
+    .dashboard-kpi-grid,
+    .dashboard-insight-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .dashboard-kpi-card {
+        position: relative;
+        overflow: hidden;
+        min-height: 132px;
+        padding: 18px 20px;
+        border-radius: 12px;
+        background: linear-gradient(180deg, #fff 0%, #fbfdff 100%);
+    }
+
+    .dashboard-kpi-card:before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 5px;
+        background: var(--accent-color);
+    }
+
+    .dashboard-kpi-card span {
+        display: block;
+        color: #1b3357;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+    }
+
+    .dashboard-kpi-card strong {
+        display: block;
+        margin: 14px 0 9px;
+        color: #061a40;
+        font-size: 36px;
+        line-height: 1;
+        font-weight: 900;
+    }
+
+    .accent-blue { --accent-color: #2563eb; }
+    .accent-amber { --accent-color: #d97706; }
+    .accent-green { --accent-color: #059669; }
+    .accent-red { --accent-color: #dc2626; }
+
+    .dashboard-main-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(360px, .95fr);
+        gap: 16px;
+    }
+
+    .dashboard-lower-grid {
+        display: grid;
+        grid-template-columns: minmax(360px, .85fr) minmax(0, 1.15fr);
+        gap: 16px;
+    }
+
+    .dashboard-panel {
+        min-width: 0;
+        padding: 18px 20px;
+        border-radius: 12px;
+        background: linear-gradient(180deg, #fff 0%, #fbfdff 100%);
+    }
+
+    .dashboard-panel-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        align-items: flex-start;
+        margin-bottom: 16px;
+    }
+
+    .dashboard-panel-head h3 {
+        margin: 0 0 4px;
+        color: #10233f;
+        font-size: 17px;
+        font-weight: 900;
+    }
+
+    .dashboard-panel-head span {
+        display: block;
+        font-size: 13px;
+        line-height: 1.4;
+    }
+
+    .dashboard-panel-head strong {
+        color: #0f766e;
+        font-size: 20px;
+        font-weight: 900;
+    }
+
+    .dashboard-link-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        padding: 0 14px;
+        border-radius: 9px;
+        background: #edf4ff;
+        color: #1d4ed8;
+        font-size: 13px;
+        font-weight: 800;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .dashboard-trend-chart {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+        gap: 12px;
+        min-height: 232px;
+        align-items: end;
+        padding: 18px 16px 14px;
+        border: 1px solid #e5edf7;
+        border-radius: 12px;
+        background:
+            linear-gradient(180deg, rgba(226, 235, 247, .52) 1px, transparent 1px),
+            #f8fbff;
+        background-size: 100% 46px;
+    }
+
+    .dashboard-trend-item {
+        display: grid;
+        grid-template-rows: minmax(135px, 1fr) auto auto;
+        gap: 8px;
+        min-height: 190px;
+        align-items: end;
+        text-align: center;
+    }
+
+    .dashboard-trend-column {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        height: 100%;
+    }
+
+    .dashboard-trend-bar {
+        width: min(100%, 76px);
+        min-height: 4px;
+        border-radius: 8px 8px 3px 3px;
+        background: linear-gradient(180deg, #2563eb, #0f766e);
+        box-shadow: 0 10px 18px rgba(37, 99, 235, .16);
+    }
+
+    .dashboard-trend-item strong {
+        color: #10233f;
+        font-size: 14px;
+        font-weight: 900;
+    }
+
+    .dashboard-trend-item span {
+        color: #50627f;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .dashboard-ring {
+        display: grid;
+        place-items: center;
+        width: min(210px, 100%);
+        aspect-ratio: 1;
+        margin: 4px auto 18px;
+        border-radius: 50%;
+        background: conic-gradient(#0f766e calc(var(--ring-value) * 1%), #e8eef7 0);
+    }
+
+    .dashboard-ring > div {
+        display: grid;
+        place-items: center;
+        width: 72%;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        background: #fff;
+    }
+
+    .dashboard-ring strong {
+        color: #061a40;
+        font-size: 32px;
+        font-weight: 900;
+    }
+
+    .dashboard-ring span {
+        color: #50627f;
+        font-weight: 800;
+    }
+
+    .dashboard-split-metrics,
+    .dashboard-field-grid,
+    .dashboard-access-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .dashboard-split-metrics span,
+    .dashboard-field-grid div,
+    .dashboard-access-grid div {
+        padding: 13px;
+        border: 1px solid #e4ebf6;
+        border-radius: 10px;
+        background: #f9fbff;
+    }
+
+    .dashboard-split-metrics b,
+    .dashboard-field-grid strong,
+    .dashboard-access-grid strong {
+        display: block;
+        margin-top: 4px;
+        color: #061a40;
+        font-size: 22px;
+        line-height: 1;
+        font-weight: 900;
+    }
+
+    .dashboard-progress-stack,
+    .dashboard-status-list {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .dashboard-progress-row,
+    .dashboard-status-row > div:first-child {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        color: #10233f;
+        font-weight: 800;
+    }
+
+    .dashboard-track {
+        height: 10px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e8eef7;
+    }
+
+    .dashboard-track div {
+        height: 100%;
+        border-radius: inherit;
+        background: #2563eb;
+        box-shadow: 0 6px 12px rgba(37, 99, 235, .12);
+    }
+
+    .dashboard-track.muted div {
+        background: #64748b;
+    }
+
+    .dashboard-track.user div {
+        background: #0f766e;
+    }
+
+    .dashboard-panel-table {
+        overflow: hidden;
+    }
+
+    .dashboard-table-wrap {
+        overflow: auto;
+        border: 1px solid #e3ebf7;
+        border-radius: 12px;
+    }
+
+    .dashboard-table {
+        width: 100%;
+        min-width: 680px;
+        border-collapse: collapse;
+        color: #10233f;
+        font-size: 14px;
+    }
+
+    .dashboard-table th {
+        background: #f4f7fb;
+        color: #31435e;
+        font-size: 12px;
+        font-weight: 900;
+        text-align: left;
+        text-transform: uppercase;
+    }
+
+    .dashboard-table th,
+    .dashboard-table td {
+        padding: 13px 14px;
+        border-bottom: 1px solid #edf2f8;
+        vertical-align: top;
+    }
+
+    .dashboard-table tbody tr:hover {
+        background: #f8fbff;
+    }
+
+    .dashboard-table tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .dashboard-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 26px;
+        padding: 0 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 900;
+    }
+
+    .dashboard-pill.success {
+        border: 1px solid #bbf7d0;
+        background: #ecfdf5;
+        color: #047857;
+    }
+
+    .dashboard-pill.muted {
+        border: 1px solid #dbe3ef;
+        background: #f3f6fb;
+        color: #475569;
+    }
+
+    .dashboard-empty {
+        padding: 18px;
+        border: 1px dashed #cbd8ea;
+        border-radius: 12px;
+        color: #50627f;
+        background: #f8fbff;
+        font-weight: 700;
+    }
+
+    @@media (max-width: 1400px) {
+        .dashboard-kpi-grid,
+        .dashboard-insight-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 1100px) {
+        .dashboard-header,
+        .dashboard-main-grid,
+        .dashboard-lower-grid {
+            grid-template-columns: 1fr;
+            flex-direction: column;
+        }
+
+        .dashboard-header-meta {
+            min-width: 0;
+        }
+    }
+
+    @@media (max-width: 720px) {
+        .dashboard-kpi-grid,
+        .dashboard-insight-grid,
+        .dashboard-split-metrics,
+        .dashboard-field-grid,
+        .dashboard-access-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .dashboard-panel-head {
+            flex-direction: column;
+        }
+    }
+</style>

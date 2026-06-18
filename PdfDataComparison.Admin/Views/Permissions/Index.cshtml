@@ -16,6 +16,11 @@
 </section>
 
 <section class="card">
+    @if (TempData["SuccessMessage"] is string successMessage)
+    {
+        <div class="alert success">@successMessage</div>
+    }
+
     <form method="get" class="action-bar">
         <div class="filter-bar">
             <select name="roleId">
@@ -24,7 +29,14 @@
                 {
                     foreach (var role in roles)
                     {
-                        <option value="@role.Id" selected="@(selectedRoleId == role.Id)">@role.Name</option>
+                        if (selectedRoleId == role.Id)
+                        {
+                            <option value="@role.Id" selected>@role.Name</option>
+                        }
+                        else
+                        {
+                            <option value="@role.Id">@role.Name</option>
+                        }
                     }
                 }
             </select>
@@ -67,28 +79,70 @@
                             </td>
                             <td>@permissionPage.PermissionKey</td>
                             <td>
+                                @if (permissions?.CanView == true)
+                                {
+                                    <input type="checkbox" name="permissions[@i].CanView" value="true" checked />
+                                }
+                                else
+                                {
+                                    <input type="checkbox" name="permissions[@i].CanView" value="true" />
+                                }
                                 <input type="hidden" name="permissions[@i].CanView" value="false" />
-                                <input type="checkbox" name="permissions[@i].CanView" value="true" checked="@((permissions?.CanView == true) ? "checked" : null)" />
                             </td>
                             <td>
+                                @if (permissions?.CanCreate == true)
+                                {
+                                    <input type="checkbox" name="permissions[@i].CanCreate" value="true" checked />
+                                }
+                                else
+                                {
+                                    <input type="checkbox" name="permissions[@i].CanCreate" value="true" />
+                                }
                                 <input type="hidden" name="permissions[@i].CanCreate" value="false" />
-                                <input type="checkbox" name="permissions[@i].CanCreate" value="true" checked="@((permissions?.CanCreate == true) ? "checked" : null)" />
                             </td>
                             <td>
+                                @if (permissions?.CanEdit == true)
+                                {
+                                    <input type="checkbox" name="permissions[@i].CanEdit" value="true" checked />
+                                }
+                                else
+                                {
+                                    <input type="checkbox" name="permissions[@i].CanEdit" value="true" />
+                                }
                                 <input type="hidden" name="permissions[@i].CanEdit" value="false" />
-                                <input type="checkbox" name="permissions[@i].CanEdit" value="true" checked="@((permissions?.CanEdit == true) ? "checked" : null)" />
                             </td>
                             <td>
+                                @if (permissions?.CanDelete == true)
+                                {
+                                    <input type="checkbox" name="permissions[@i].CanDelete" value="true" checked />
+                                }
+                                else
+                                {
+                                    <input type="checkbox" name="permissions[@i].CanDelete" value="true" />
+                                }
                                 <input type="hidden" name="permissions[@i].CanDelete" value="false" />
-                                <input type="checkbox" name="permissions[@i].CanDelete" value="true" checked="@((permissions?.CanDelete == true) ? "checked" : null)" />
                             </td>
                             <td>
+                                @if (permissions?.CanSubmit == true)
+                                {
+                                    <input type="checkbox" name="permissions[@i].CanSubmit" value="true" checked />
+                                }
+                                else
+                                {
+                                    <input type="checkbox" name="permissions[@i].CanSubmit" value="true" />
+                                }
                                 <input type="hidden" name="permissions[@i].CanSubmit" value="false" />
-                                <input type="checkbox" name="permissions[@i].CanSubmit" value="true" checked="@((permissions?.CanSubmit == true) ? "checked" : null)" />
                             </td>
                             <td>
+                                @if (permissions?.CanExport == true)
+                                {
+                                    <input type="checkbox" name="permissions[@i].CanExport" value="true" checked />
+                                }
+                                else
+                                {
+                                    <input type="checkbox" name="permissions[@i].CanExport" value="true" />
+                                }
                                 <input type="hidden" name="permissions[@i].CanExport" value="false" />
-                                <input type="checkbox" name="permissions[@i].CanExport" value="true" checked="@((permissions?.CanExport == true) ? "checked" : null)" />
                             </td>
                         </tr>
                     }
@@ -96,7 +150,14 @@
                 </table>
             </div>
             <div class="toolbar" style="margin-top:16px;">
-                <button type="submit" class="btn btn-primary" disabled="@(string.IsNullOrWhiteSpace(selectedRoleId) ? "disabled" : null)">Save Permissions</button>
+                @if (string.IsNullOrWhiteSpace(selectedRoleId))
+                {
+                    <button type="submit" class="btn btn-primary" disabled>Select a Role Before Saving</button>
+                }
+                else
+                {
+                    <button type="submit" class="btn btn-primary">Save Permissions</button>
+                }
             </div>
         </form>
     }

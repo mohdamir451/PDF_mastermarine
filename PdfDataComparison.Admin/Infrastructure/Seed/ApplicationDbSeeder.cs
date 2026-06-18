@@ -33,18 +33,27 @@ public static class ApplicationDbSeeder
             }
         }
 
-        var admin = await userManager.FindByNameAsync("superadmin");
+        var adminUserName = Environment.GetEnvironmentVariable("PDF_ADMIN_BOOTSTRAP_USERNAME") ?? "superadmin";
+        var adminEmail = Environment.GetEnvironmentVariable("PDF_ADMIN_BOOTSTRAP_EMAIL") ?? "superadmin@pdfcompare.local";
+        var adminPassword = Environment.GetEnvironmentVariable("PDF_ADMIN_BOOTSTRAP_PASSWORD");
+        var admin = await userManager.FindByNameAsync(adminUserName);
         if (admin == null)
         {
+            if (string.IsNullOrWhiteSpace(adminPassword))
+            {
+                throw new InvalidOperationException(
+                    "Set PDF_ADMIN_BOOTSTRAP_PASSWORD before first startup so the SuperAdmin user can be created securely.");
+            }
+
             admin = new ApplicationUser
             {
-                UserName = "superadmin",
-                Email = "superadmin@pdfcompare.local",
+                UserName = adminUserName,
+                Email = adminEmail,
                 FullName = "System Super Admin",
                 Department = "IT",
                 IsActive = true
             };
-            await userManager.CreateAsync(admin, "SuperAdmin!23");
+            await userManager.CreateAsync(admin, adminPassword);
             await userManager.AddToRoleAsync(admin, "SuperAdmin");
         }
 

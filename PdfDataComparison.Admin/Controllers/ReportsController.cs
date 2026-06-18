@@ -13,6 +13,7 @@ public class ReportsController(ApplicationDbContext dbContext) : Controller
     public async Task<IActionResult> Index()
     {
         var jobSubmissions = await dbContext.ComparisonSubmissions
+            .AsNoTracking()
             .Select(x => new ReportHistoryItemVm
             {
                 Id = x.Id,
@@ -26,6 +27,7 @@ public class ReportsController(ApplicationDbContext dbContext) : Controller
             .ToListAsync();
 
         var pdfSubmissions = await dbContext.PdfComparisonSubmissions
+            .AsNoTracking()
             .Where(x => x.IsActive)
             .Select(x => new ReportHistoryItemVm
             {
@@ -42,5 +44,11 @@ public class ReportsController(ApplicationDbContext dbContext) : Controller
         return View(jobSubmissions.Concat(pdfSubmissions).OrderByDescending(x => x.SubmittedAt).ToList());
     }
 
-    public async Task<IActionResult> Details(int id) => View(await dbContext.ComparisonSubmissions.FirstAsync(x => x.Id == id));
+    public async Task<IActionResult> Details(int id)
+    {
+        var submission = await dbContext.ComparisonSubmissions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id);
+        return submission == null ? NotFound() : View(submission);
+    }
 }

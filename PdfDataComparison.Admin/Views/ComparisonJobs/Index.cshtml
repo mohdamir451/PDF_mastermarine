@@ -17,6 +17,13 @@
     <a asp-action="SubmittedPdfData">Saved PDF Data</a>
 </nav>
 
+<div class="comparison-stepper" aria-label="PDF comparison workflow">
+    <div class="comparison-step is-active"><span>1</span> Upload PDF</div>
+    <div class="comparison-step"><span>2</span> Review fields</div>
+    <div class="comparison-step"><span>3</span> Resolve issues</div>
+    <div class="comparison-step"><span>4</span> Save record</div>
+</div>
+
 <section class="card" id="pdfCompareSection">
     <h3 class="card-title">PDF API Compare</h3>
     <p class="form-help">Upload a PDF, send it to your API for extraction, then compare API values with PDF values.</p>
@@ -64,19 +71,19 @@
             </div>
         </div>
 
-        <div class="validation-toolbar">
+        <div class="validation-toolbar sticky-primary-action">
             <div class="validation-title">
                 <h3>PDF Validation Workspace</h3>
                 <p class="form-help">Review source evidence and resolve field issues before export.</p>
             </div>
-            <div class="validation-command-groups">
-                <div class="command-group" aria-label="View controls">
+            <div class="workspace-command-bar">
+                <div class="workspace-command-secondary" aria-label="View controls">
                     <button type="button" class="btn btn-secondary is-active" data-workspace-view="side-by-side">Side by Side</button>
                     <button type="button" class="btn btn-ghost" data-workspace-view="pdf-focus">PDF Focus</button>
                     <button type="button" class="btn btn-ghost" data-workspace-view="matrix-focus">Matrix Focus</button>
                     <button type="button" class="btn btn-ghost" data-workspace-view="three-column">Details</button>
                 </div>
-                <div class="command-group" aria-label="Review controls">
+                <div class="workspace-command-secondary" aria-label="Review controls">
                     <button type="button" class="btn btn-ghost" id="prevMismatchBtn">Previous Issue</button>
                     <button type="button" class="btn btn-ghost" id="nextMismatchBtn">Next Issue</button>
                     <label class="checkbox-row compact-check">
@@ -84,7 +91,7 @@
                         <span>Show issues only</span>
                     </label>
                 </div>
-                <div class="command-group" aria-label="Export controls">
+                <div class="workspace-command-secondary" aria-label="Export controls">
                     <button type="button" class="btn btn-secondary" id="openPdfModalBtn">PDF Popup</button>
                     <button type="button" class="btn btn-secondary" id="openMatrixModalBtn">Matrix Popup</button>
                     <button type="button" class="btn btn-secondary" onclick="refreshPdf()">Refresh PDF</button>
@@ -172,9 +179,9 @@
 </section>
 
 <div class="modal-backdrop compare-modal-backdrop" id="pdfPreviewModal" aria-hidden="true">
-    <div class="modal-card compare-modal-card">
+    <div class="modal-card compare-modal-card" role="dialog" aria-modal="true" aria-labelledby="pdfPreviewModalTitle">
         <div class="compare-modal-head">
-            <h3>PDF Preview</h3>
+            <h3 id="pdfPreviewModalTitle">PDF Preview</h3>
             <button type="button" class="btn btn-ghost btn-small" data-close-modal="pdfPreviewModal">Close</button>
         </div>
         <div class="compare-modal-body pdf-modal-body">
@@ -184,9 +191,9 @@
 </div>
 
 <div class="modal-backdrop compare-modal-backdrop" id="matrixPreviewModal" aria-hidden="true">
-    <div class="modal-card compare-modal-card compare-modal-card-wide">
+    <div class="modal-card compare-modal-card compare-modal-card-wide" role="dialog" aria-modal="true" aria-labelledby="matrixPreviewModalTitle">
         <div class="compare-modal-head">
-            <h3>Field Comparison Matrix</h3>
+            <h3 id="matrixPreviewModalTitle">Field Comparison Matrix</h3>
             <button type="button" class="btn btn-ghost btn-small" data-close-modal="matrixPreviewModal">Close</button>
         </div>
         <div class="compare-modal-body">
@@ -196,7 +203,7 @@
 </div>
 
 <div class="drawer-backdrop" id="savedSubmissionPreviewModal" aria-hidden="true">
-    <aside class="detail-drawer" aria-label="Saved PDF data details">
+    <aside class="detail-drawer" role="dialog" aria-modal="true" aria-label="Saved PDF data details">
         <div class="drawer-head">
             <div>
                 <h3 id="savedPreviewTitle">Saved PDF Data</h3>
@@ -1182,6 +1189,7 @@
     let matrixRows = [];
     let currentSourceFileName = '';
     let selectedRow = null;
+    let currentPdfPreviewUrl = '';
 
     const normalizeValue = (value) => (value ?? '').toString().trim().toLowerCase();
     const getDownloadFileName = (disposition, fallback) => {
@@ -1224,6 +1232,21 @@
     const clearError = () => {
         errorBox.hidden = true;
         errorBox.textContent = '';
+    };
+
+    const setPdfPreviewFromFile = (file) => {
+        if (currentPdfPreviewUrl) {
+            URL.revokeObjectURL(currentPdfPreviewUrl);
+            currentPdfPreviewUrl = '';
+        }
+
+        if (!file) {
+            pdfFrame.removeAttribute('src');
+            return;
+        }
+
+        currentPdfPreviewUrl = URL.createObjectURL(file);
+        pdfFrame.src = currentPdfPreviewUrl;
     };
 
     const setSubmitAvailability = (isEnabled) => {
@@ -2142,9 +2165,7 @@
             renderRows(rows);
             currentSourceFileName = payload.fileName || (fileInput.files && fileInput.files[0] ? fileInput.files[0].name : '');
 
-            if (payload.pdfBase64) {
-                pdfFrame.src = `data:application/pdf;base64,${payload.pdfBase64}`;
-            }
+            setPdfPreviewFromFile(fileInput.files[0]);
 
             matchBadge.textContent = `Matches: ${payload.matches ?? 0}`;
             mismatchBadge.textContent = `Issues: ${payload.mismatches ?? 0}`;
@@ -2165,11 +2186,11 @@
     if (uploadAnotherBtn) {
         uploadAnotherBtn.addEventListener('click', () => {
             fileInput.value = '';
+            setPdfPreviewFromFile(null);
             body.innerHTML = '';
             matrixRows = [];
             currentSourceFileName = '';
             selectedRow = null;
-            pdfFrame.removeAttribute('src');
             clearError();
             matchBadge.hidden = true;
             mismatchBadge.hidden = true;

@@ -29,7 +29,7 @@
         @if (Model.Any())
         {
             <div class="table-wrap" id="reportsTableWrap">
-                <table class="table" id="reportsTable" data-sortable>
+                <table class="table table-responsive-card" id="reportsTable" data-sortable>
                 <thead>
                 <tr>
                     <th><button type="button" class="sort-btn" data-sort-col="0">Submission ID</button></th>
@@ -45,13 +45,13 @@
                 @foreach (var item in Model)
                 {
                     <tr>
-                        <td><strong>#@item.Id</strong></td>
-                        <td><span class="badge neutral">@item.SourceType</span></td>
-                        <td>@item.Reference</td>
-                        <td>@(string.IsNullOrWhiteSpace(item.SourceFileName) ? "-" : item.SourceFileName)</td>
-                        <td>@(string.IsNullOrWhiteSpace(item.SubmittedByUserId) ? "-" : item.SubmittedByUserId)</td>
-                        <td>@item.SubmittedAt.ToString("u")</td>
-                        <td class="actions">
+                        <td data-label="Submission ID"><strong>#@item.Id</strong></td>
+                        <td data-label="Type"><span class="badge neutral">@item.SourceType</span></td>
+                        <td data-label="Reference">@item.Reference</td>
+                        <td data-label="Source File">@(string.IsNullOrWhiteSpace(item.SourceFileName) ? "-" : item.SourceFileName)</td>
+                        <td data-label="Submitted By">@(string.IsNullOrWhiteSpace(item.SubmittedByUserId) ? "-" : item.SubmittedByUserId)</td>
+                        <td data-label="Submitted At (UTC)">@item.SubmittedAt.ToString("u")</td>
+                        <td class="actions" data-label="Actions">
                             @if (item.HasDetailsPage)
                             {
                                 <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-primary">Details</a>

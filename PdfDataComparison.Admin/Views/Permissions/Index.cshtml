@@ -53,8 +53,8 @@
         <form asp-action="Save" method="post">
             @Html.AntiForgeryToken()
             <input type="hidden" name="roleId" value="@selectedRoleId" />
-            <div class="table-wrap">
-                <table class="table">
+            <div class="table-wrap permission-table-wrap">
+                <table class="table permission-table">
                     <thead>
                     <tr>
                         <th>Page</th>
@@ -73,7 +73,7 @@
                         var permissionPage = pages[i];
                         var permissions = rolePermissions.FirstOrDefault(x => x.PagePermissionId == permissionPage.Id);
                         <tr>
-                            <td>
+                            <td class="permission-page-cell">
                                 <strong>@permissionPage.PageName</strong>
                                 <input type="hidden" name="permissions[@i].PagePermissionId" value="@permissionPage.Id" />
                             </td>

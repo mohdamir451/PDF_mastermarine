@@ -10,11 +10,16 @@ namespace PdfDataComparison.Admin.Controllers;
 [Authorize(Policy = PermissionCatalog.AuditLogsView)]
 public class AuditController(ApplicationDbContext dbContext) : Controller
 {
-    public async Task<IActionResult> Index() => View(await dbContext.AuditLogs.OrderByDescending(x => x.Timestamp).Take(200).ToListAsync());
+    public async Task<IActionResult> Index() => View(await dbContext.AuditLogs
+        .AsNoTracking()
+        .OrderByDescending(x => x.Timestamp)
+        .Take(200)
+        .ToListAsync());
 
     public async Task<IActionResult> DownloadExcel()
     {
         var logs = await dbContext.AuditLogs
+            .AsNoTracking()
             .OrderByDescending(x => x.Timestamp)
             .Take(200)
             .ToListAsync();
@@ -84,6 +89,11 @@ public class AuditController(ApplicationDbContext dbContext) : Controller
             .ToArray();
 
         var safeValue = new string(safeChars);
+        if (safeValue.StartsWith('=') || safeValue.StartsWith('+') || safeValue.StartsWith('-') || safeValue.StartsWith('@'))
+        {
+            safeValue = "'" + safeValue;
+        }
+
         return safeValue.Length <= 32767 ? safeValue : safeValue[..32767];
     }
 }

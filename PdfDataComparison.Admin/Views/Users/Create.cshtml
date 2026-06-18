@@ -19,13 +19,13 @@
 
         <div class="form-grid">
             <div class="form-group">
-                <label asp-for="FullName">Full Name</label>
+                <label asp-for="FullName" class="required">Full Name</label>
                 <input asp-for="FullName" placeholder="Enter full name" autocomplete="name" />
                 <span asp-validation-for="FullName" class="field-validation-error"></span>
                 <span class="form-help">Use the employee's official display name.</span>
             </div>
             <div class="form-group">
-                <label asp-for="Email">Email Address</label>
+                <label asp-for="Email" class="required">Email Address</label>
                 <input asp-for="Email" type="email" placeholder="name@company.com" autocomplete="email" />
                 <span asp-validation-for="Email" class="field-validation-error"></span>
                 <span class="form-help">Email must be unique in this workspace.</span>
@@ -47,13 +47,13 @@
                 <span asp-validation-for="RoleName" class="field-validation-error"></span>
             </div>
             <div class="form-group">
-                <label asp-for="Password">Password</label>
+                <label asp-for="Password" class="required">Password</label>
                 <input asp-for="Password" type="password" autocomplete="new-password" />
                 <span asp-validation-for="Password" class="field-validation-error"></span>
                 <span class="form-help">Minimum 8 characters with a digit and a special character.</span>
             </div>
             <div class="form-group">
-                <label asp-for="ConfirmPassword">Confirm Password</label>
+                <label asp-for="ConfirmPassword" class="required">Confirm Password</label>
                 <input asp-for="ConfirmPassword" type="password" autocomplete="new-password" />
                 <span asp-validation-for="ConfirmPassword" class="field-validation-error"></span>
             </div>

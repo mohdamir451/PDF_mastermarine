@@ -1,16 +1,20 @@
 using PdfDataComparison.Admin.Application.Interfaces;
 using PdfDataComparison.Admin.Application.ViewModels;
+using PdfDataComparison.Admin.Data;
 using PdfDataComparison.Admin.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace PdfDataComparison.Admin.Application.Services;
 
-public class UserService(UserManager<ApplicationUser> userManager) : IUserService
+public class UserService(UserManager<ApplicationUser> userManager, ApplicationDbContext dbContext) : IUserService
 {
     public async Task<PagedResult<UserListItemVm>> GetUsersAsync(string? search, int page, int pageSize)
     {
-        var query = userManager.Users.AsQueryable();
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
+        var query = userManager.Users.AsNoTracking().AsQueryable();
         if (!string.IsNullOrWhiteSpace(search))
         {
             query = query.Where(x => x.FullName.Contains(search) || x.Email!.Contains(search) || x.UserName!.Contains(search));
@@ -22,9 +26,23 @@ public class UserService(UserManager<ApplicationUser> userManager) : IUserServic
             .Take(pageSize)
             .ToListAsync();
 
+        var userIds = users.Select(x => x.Id).ToList();
+        var userRoles = await (
+            from userRole in dbContext.UserRoles.AsNoTracking()
+            join role in dbContext.Roles.AsNoTracking() on userRole.RoleId equals role.Id
+            where userIds.Contains(userRole.UserId)
+            select new { userRole.UserId, RoleName = role.Name ?? string.Empty }
+        )
+            .ToListAsync();
+
+        var rolesByUser = userRoles
+            .GroupBy(x => x.UserId)
+            .ToDictionary(x => x.Key, x => x.Select(r => r.RoleName).Where(r => !string.IsNullOrWhiteSpace(r)).ToList());
+
         var items = new List<UserListItemVm>();
         foreach (var user in users)
         {
+            rolesByUser.TryGetValue(user.Id, out var roles);
             items.Add(new UserListItemVm
             {
                 Id = user.Id,
@@ -34,7 +52,7 @@ public class UserService(UserManager<ApplicationUser> userManager) : IUserServic
                 IsActive = user.IsActive,
                 CreatedDate = user.CreatedDate,
                 LastLoginAt = user.LastLoginAt,
-                Roles = (await userManager.GetRolesAsync(user)).ToList()
+                Roles = roles ?? new List<string>()
             });
         }
 

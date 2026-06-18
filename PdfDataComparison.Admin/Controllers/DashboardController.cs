@@ -15,6 +15,7 @@ public class DashboardController(ApplicationDbContext dbContext) : Controller
         var completedJobSubmissions = await dbContext.ComparisonSubmissions.CountAsync();
         var completedPdfSubmissions = await dbContext.PdfComparisonSubmissions.CountAsync(x => x.IsActive);
         var allPdfSubmissions = await dbContext.PdfComparisonSubmissions
+            .AsNoTracking()
             .OrderByDescending(x => x.SubmittedAt)
             .ToListAsync();
         var activePdfSubmissions = allPdfSubmissions
@@ -45,6 +46,7 @@ public class DashboardController(ApplicationDbContext dbContext) : Controller
             LastPdfSubmittedAt = allPdfSubmissions.FirstOrDefault()?.SubmittedAt,
             CompletedSubmissions = completedJobSubmissions + completedPdfSubmissions,
             JobStatusBreakdown = await dbContext.ComparisonJobs
+                .AsNoTracking()
                 .GroupBy(x => x.Status)
                 .Select(x => new DashboardStatusMetricVm { Status = x.Key, Count = x.Count() })
                 .OrderByDescending(x => x.Count)
@@ -68,6 +70,7 @@ public class DashboardController(ApplicationDbContext dbContext) : Controller
                 })
                 .ToList(),
             RecentActivity = await dbContext.AuditLogs
+                .AsNoTracking()
                 .OrderByDescending(x => x.Timestamp)
                 .Take(6)
                 .Select(x => new DashboardAuditActivityVm

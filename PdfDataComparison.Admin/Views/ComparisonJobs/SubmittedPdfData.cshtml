@@ -9,46 +9,31 @@
     var lastSavedPdfSubmission = Model.OrderByDescending(x => x.SubmittedAt).FirstOrDefault();
 }
 
-<section class="page-hero">
-    <div>
-        <h2>Submitted PDF Data</h2>
-        <p>Review latest saved PDF validation records, inspect replaced history, and download selected data as Excel ZIP files.</p>
-    </div>
-    <div class="table-tools">
-        <a asp-action="Index" class="btn btn-ghost">Back to Comparison Jobs</a>
-        <span class="badge neutral">@Model.Count saved records</span>
-    </div>
-</section>
-
-<section class="card" id="submittedPdfDataSection">
-    <div class="action-bar submitted-data-head">
-        <div>
-            <h3 class="card-title">Submitted PDF Data</h3>
-            <p class="form-help">Active records are the latest saved version for each bill of lading number.</p>
+<section class="submitted-page-shell">
+    <header class="submitted-page-hero">
+        <div class="submitted-title-block">
+            <h2>Submitted PDF Data</h2>
         </div>
-        <div class="table-tools">
-            <div class="segmented-control" role="group" aria-label="Submitted PDF data mode">
-                <button type="button" class="segment-btn is-active" data-pdf-mode="active">Active Records</button>
-                <button type="button" class="segment-btn" data-pdf-mode="history">Inactive History</button>
-            </div>
-            <span class="badge success">@activePdfSubmissions.Count active</span>
-            <span class="badge neutral">@inactivePdfSubmissions.Count replaced</span>
+        <div class="submitted-header-actions">
+            <span class="submitted-record-pill">@Model.Count saved records</span>
+            <a asp-action="Index" class="btn btn-ghost submitted-back-btn">Back to Comparison Jobs</a>
         </div>
-    </div>
+    </header>
 
+    <section class="submitted-panel" id="submittedPdfDataSection">
     <div class="submitted-summary-grid" aria-label="Submitted PDF data summary">
-        <div class="submitted-summary-card"><span>Active Records</span><strong>@activePdfSubmissions.Count</strong></div>
-        <div class="submitted-summary-card"><span>Replaced Records</span><strong>@inactivePdfSubmissions.Count</strong></div>
-        <div class="submitted-summary-card success"><span>Complete</span><strong>@completePdfSubmissions</strong></div>
-        <div class="submitted-summary-card warning"><span>Needs Review</span><strong>@needsReviewPdfSubmissions</strong></div>
-        <div class="submitted-summary-card"><span>Last Saved</span><strong>@(lastSavedPdfSubmission == null ? "-" : lastSavedPdfSubmission.SubmittedAt.ToString("yyyy-MM-dd"))</strong></div>
+        <div class="submitted-summary-card metric-active"><strong>@activePdfSubmissions.Count</strong><span>Active Records</span></div>
+        <div class="submitted-summary-card metric-replaced"><strong>@inactivePdfSubmissions.Count</strong><span>Replaced Records</span></div>
+        <div class="submitted-summary-card metric-complete"><strong>@completePdfSubmissions</strong><span>Complete</span></div>
+        <div class="submitted-summary-card metric-review"><strong>@needsReviewPdfSubmissions</strong><span>Needs Review</span></div>
+        <div class="submitted-summary-card metric-last"><strong>@(lastSavedPdfSubmission == null ? "-" : lastSavedPdfSubmission.SubmittedAt.ToString("dd MMM yyyy"))</strong><span>Last Saved</span></div>
     </div>
 
     @if (Model.Any())
     {
         <form asp-action="DownloadSelectedPdfSubmissionExcel" method="post" id="selectedPdfDownloadForm">
             @Html.AntiForgeryToken()
-            <div class="submitted-filter-grid submitted-sticky-toolbar">
+            <div class="submitted-filter-grid submitted-sticky-toolbar" aria-label="Submitted PDF filters">
                 <div class="form-group submitted-search-field">
                     <label for="jobsQuickFilter">Search</label>
                     <input id="jobsQuickFilter" class="table-quick-filter" type="search" placeholder="Job ID, BL number, file, user" />
@@ -78,17 +63,31 @@
                     </select>
                 </div>
                 <div class="submitted-export-actions">
-                    <span class="badge info" id="selectedPdfCount">0 selected</span>
                     <button type="button" class="btn btn-ghost" id="clearSubmittedFiltersBtn">Clear</button>
-                    <button type="submit" class="btn btn-primary" id="downloadSelectedPdfExcelBtn" disabled>Download Excel</button>
                 </div>
+            </div>
+
+            <div class="bulk-action-bar" id="submittedBulkActionBar" hidden>
+                <span class="badge info" id="selectedPdfCount">0 selected</span>
+                <button type="submit" class="btn btn-primary" id="downloadSelectedPdfExcelBtn" disabled>Download Excel</button>
             </div>
 
             <div class="alert warning" id="selectedPdfDownloadError" hidden>Select at least one submitted PDF data row.</div>
             <div class="alert success" id="submittedSaveSuccess" hidden></div>
 
-            <div class="table-wrap" id="jobsTableWrap">
-                <table class="table submitted-data-table" id="jobsTable" data-sortable>
+            <div class="submitted-table-commandbar">
+                <div class="segmented-control" role="group" aria-label="Submitted PDF data mode">
+                    <button type="button" class="segment-btn is-active" data-pdf-mode="active">Active Records</button>
+                    <button type="button" class="segment-btn" data-pdf-mode="history">Inactive History</button>
+                </div>
+                <div class="submitted-mode-counts">
+                    <span class="badge success">@activePdfSubmissions.Count active</span>
+                    <span class="badge neutral">@inactivePdfSubmissions.Count replaced</span>
+                </div>
+            </div>
+
+            <div class="table-wrap submitted-table-wrap" id="jobsTableWrap">
+                <table class="table submitted-data-table table-responsive-card" id="jobsTable" data-sortable>
                     <thead>
                         <tr>
                             <th>
@@ -110,25 +109,27 @@
                         var submittedDate = submission.SubmittedAt.ToString("yyyy-MM-dd");
                         var validationKey = submission.IssueCount == 0 ? "complete" : "needs-review";
                         var validationClass = submission.IssueCount == 0 ? "success" : "warning";
+                        var billOfLadingNumber = string.IsNullOrWhiteSpace(submission.BillOfLadingNumber) ? "-" : submission.BillOfLadingNumber;
+                        var sourceFileName = string.IsNullOrWhiteSpace(submission.SourceFileName) ? "-" : submission.SourceFileName;
                         <tr data-pdf-submission-row data-active="@submission.IsActive.ToString().ToLowerInvariant()" data-validation="@validationKey" data-submitted-date="@submittedDate">
-                            <td>
+                            <td data-label="Select">
                                 <label class="checkbox-row compact-check">
                                     <input class="pdf-submission-check" type="checkbox" name="selectedPdfSubmissionIds" value="@submission.Id" aria-label="Select job PDF-JOB-@submission.Id.ToString("D5")" @(submission.IsActive ? "" : "disabled") />
                                 </label>
                             </td>
-                            <td><strong>PDF-JOB-@submission.Id.ToString("D5")</strong></td>
-                            <td>@(string.IsNullOrWhiteSpace(submission.BillOfLadingNumber) ? "-" : submission.BillOfLadingNumber)</td>
-                            <td>@(string.IsNullOrWhiteSpace(submission.SourceFileName) ? "-" : submission.SourceFileName)</td>
-                            <td>
-                                <strong>@submission.SubmittedAt.ToString("yyyy-MM-dd")</strong>
-                                <span class="field-count-note">@(string.IsNullOrWhiteSpace(submission.SubmittedByUserId) ? "-" : submission.SubmittedByUserId)</span>
+                            <td data-label="Job ID"><strong class="cell-truncate">PDF-JOB-@submission.Id.ToString("D5")</strong></td>
+                            <td data-label="Bill Of Lading Number"><span class="cell-truncate" title="@billOfLadingNumber">@billOfLadingNumber</span></td>
+                            <td data-label="Source File"><span class="cell-truncate" title="@sourceFileName">@sourceFileName</span></td>
+                            <td data-label="Submitted">
+                                <strong class="cell-truncate">@submission.SubmittedAt.ToString("yyyy-MM-dd")</strong>
+                                
                             </td>
-                            <td>
+                            <td data-label="Status">
                                 <span class="badge @validationClass status-chip-visual">@submission.ValidationStatus</span>
-                                <span class="field-count-note">@submission.TotalFields fields · @submission.IssueCount issues</span>
+                                <span class="field-count-note cell-truncate">@submission.TotalFields fields · @submission.IssueCount issues</span>
                             </td>
-                            <td>
-                                <button type="button" class="btn btn-ghost btn-small" data-preview-submission>View Saved Data</button>
+                            <td data-label="Actions" class="submitted-actions-cell">
+                                <button type="button" class="btn btn-ghost btn-small submitted-view-btn" data-preview-submission>View</button>
                                 <pre class="json-preview saved-row-json" hidden>@submission.PayloadJson</pre>
                             </td>
                         </tr>
@@ -154,10 +155,11 @@
             <a asp-action="Index" class="btn btn-primary">Validate PDF</a>
         </div>
     }
+    </section>
 </section>
 
 <div class="drawer-backdrop" id="savedSubmissionPreviewModal" aria-hidden="true">
-    <aside class="detail-drawer" aria-label="Saved PDF data details">
+    <aside class="detail-drawer" role="dialog" aria-modal="true" aria-label="Saved PDF data details">
         <div class="drawer-head">
             <div>
                 <h3 id="savedPreviewTitle">Saved PDF Data</h3>
@@ -210,120 +212,474 @@
 <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
 
 <style>
-    .submitted-data-head { align-items: flex-start; gap: 16px; }
-    .segmented-control { display: inline-flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-muted); }
-    .segment-btn { min-height: 32px; padding: 0 12px; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer; font: inherit; }
-    .segment-btn.is-active { background: var(--surface); box-shadow: var(--shadow-sm); color: var(--text); font-weight: 700; }
-    .submitted-summary-grid { display: grid; gap: 10px; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 14px 0 16px; }
-    .submitted-summary-card { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); padding: 12px; }
-    .submitted-summary-card span { color: var(--text-muted); display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; }
-    .submitted-summary-card strong { color: var(--title); display: block; font-size: 22px; margin-top: 6px; }
-    .submitted-summary-card.success { border-color: color-mix(in srgb, #16a34a 34%, var(--border)); }
-    .submitted-summary-card.warning { border-color: color-mix(in srgb, #f59e0b 42%, var(--border)); }
+    .submitted-page-shell {
+        --submitted-border: #d9e2ef;
+        --submitted-muted: #667085;
+        --submitted-strong: #0f172a;
+        --submitted-soft: #f7f9fc;
+        --submitted-row: #fbfcfe;
+        display: grid;
+        gap: 8px;
+    }
+
+    .submitted-page-hero {
+        align-items: center;
+        background: var(--surface);
+        border: 1px solid var(--submitted-border);
+        border-radius: 10px;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, .045);
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        min-height: 48px;
+        padding: 8px 12px;
+    }
+
+    .submitted-title-block {
+        min-width: 0;
+    }
+
+    .submitted-title-block h2 {
+        color: var(--submitted-strong);
+        font-size: clamp(19px, 1.45vw, 24px);
+        letter-spacing: 0;
+        line-height: 1.1;
+        margin: 0;
+    }
+
+    .submitted-title-block p {
+        color: var(--submitted-muted);
+        font-size: 13px;
+        line-height: 1.4;
+        margin: 0;
+        max-width: 760px;
+    }
+
+    .submitted-header-actions {
+        align-items: center;
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        white-space: nowrap;
+    }
+
+    .submitted-back-btn {
+        background: #f6f8fb;
+        border-color: transparent;
+        border-radius: 8px;
+        color: #1f2937;
+        font-size: 12px;
+        min-height: 28px;
+        padding: 0 10px;
+    }
+
+    .submitted-record-pill {
+        align-items: center;
+        background: #f3f7ff;
+        border: 1px solid #d8e5ff;
+        border-radius: 999px;
+        color: #1e3a8a;
+        display: inline-flex;
+        font-size: 12px;
+        font-weight: 800;
+        min-height: 26px;
+        padding: 0 9px;
+    }
+
+    .submitted-panel {
+        background: var(--surface);
+        border: 1px solid var(--submitted-border);
+        border-radius: 10px;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, .045);
+        overflow: clip;
+        padding: 8px;
+    }
+
+    .submitted-table-commandbar {
+        align-items: center;
+        display: flex;
+        gap: 8px;
+        justify-content: space-between;
+        margin: 2px 0 6px;
+    }
+
+    .submitted-mode-counts {
+        align-items: center;
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end;
+    }
+
+    .segmented-control {
+        align-items: center;
+        background: #f6f8fb;
+        border: 1px solid var(--submitted-border);
+        border-radius: 9px;
+        display: inline-flex;
+        gap: 2px;
+        padding: 3px;
+    }
+
+    .segment-btn {
+        background: transparent;
+        border: 0;
+        border-radius: 7px;
+        color: #475569;
+        cursor: pointer;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 750;
+        min-height: 28px;
+        padding: 0 10px;
+    }
+
+    .segment-btn:focus-visible,
+    .submitted-filter-grid input:focus,
+    .submitted-filter-grid select:focus,
+    .submitted-view-btn:focus-visible {
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, .16);
+        outline: 2px solid transparent;
+    }
+
+    .segment-btn.is-active {
+        background: var(--surface);
+        box-shadow: 0 3px 9px rgba(15, 23, 42, .08);
+        color: #0f172a;
+    }
+
+    .submitted-summary-grid {
+        display: grid;
+        gap: 6px;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        margin: 0 0 6px;
+    }
+
+    .submitted-summary-card {
+        background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+        border: 1px solid var(--submitted-border);
+        border-top: 2px solid #d8dee8;
+        border-radius: 9px;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, .04), 0 1px 2px rgba(15, 23, 42, .04);
+        min-height: 54px;
+        padding: 8px 10px 9px;
+        transition: background .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+    }
+
+    .submitted-summary-card span {
+        color: #697586;
+        display: block;
+        font-size: 9.5px;
+        font-weight: 700;
+        letter-spacing: .04em;
+        line-height: 1.15;
+        text-transform: uppercase;
+    }
+
+    .submitted-summary-card strong {
+        color: var(--submitted-strong);
+        display: block;
+        font-size: 24px;
+        font-weight: 875;
+        line-height: 1.05;
+        margin-bottom: 6px;
+    }
+
+    .submitted-summary-card:hover {
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        border-color: #cbd7e8;
+        box-shadow: 0 6px 16px rgba(15, 23, 42, .065), 0 1px 2px rgba(15, 23, 42, .05);
+        transform: translateY(-1px);
+    }
+
+    .submitted-summary-card.metric-active { border-top-color: #8bb7f8; }
+    .submitted-summary-card.metric-replaced { border-top-color: #a5b1c2; }
+    .submitted-summary-card.metric-complete { border-top-color: #86d7a2; }
+    .submitted-summary-card.metric-review { border-top-color: #f3c278; }
+    .submitted-summary-card.metric-last { border-top-color: #b9a5f6; }
+
+    .submitted-summary-card.metric-last strong {
+        font-size: 19px;
+        letter-spacing: 0;
+    }
+
     .submitted-filter-grid {
         align-items: end;
+        background: transparent;
+        border: 0;
+        border-bottom: 1px solid var(--submitted-border);
+        border-radius: 0;
         display: grid;
-        gap: 12px;
-        grid-template-columns: minmax(260px, 1.3fr) minmax(170px, .75fr) minmax(170px, .7fr) minmax(170px, .7fr) 130px minmax(300px, max-content);
-        margin-bottom: 12px;
+        gap: 6px;
+        grid-template-columns: minmax(240px, 1.45fr) minmax(144px, .72fr) minmax(138px, .62fr) minmax(138px, .62fr) 116px auto;
+        margin: 0 0 6px;
+        padding: 0 0 6px;
     }
+
     .submitted-sticky-toolbar {
         position: sticky;
         top: 0;
         z-index: 12;
-        padding: 12px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        background: color-mix(in srgb, var(--surface) 94%, transparent);
+        background: color-mix(in srgb, var(--surface) 96%, transparent);
         backdrop-filter: blur(10px);
         max-width: 100%;
         overflow: hidden;
     }
+
     .submitted-filter-grid .form-group {
         min-width: 0;
     }
+
+    .submitted-filter-grid label {
+        color: #334155;
+        font-size: 11px;
+        font-weight: 800;
+        margin-bottom: 3px;
+    }
+
     #submittedPdfDataSection {
         overflow-x: hidden;
     }
+
     .submitted-filter-grid input,
     .submitted-filter-grid select {
+        border-color: var(--submitted-border);
+        border-radius: 8px;
+        font-size: 13px;
+        min-height: 30px;
+        padding: 5px 9px;
         width: 100%;
     }
+
     .submitted-page-size-field {
-        min-width: 130px;
+        min-width: 120px;
     }
+
     #submittedDateFrom,
     #submittedDateTo {
-        min-width: 170px;
+        min-width: 150px;
     }
+
     .submitted-search-field input {
         min-width: 0;
     }
+
     .submitted-export-actions {
         align-items: center;
         display: flex;
         flex-wrap: nowrap;
         gap: 8px;
         justify-content: flex-end;
-        min-width: 300px;
+        min-width: 0;
         white-space: nowrap;
     }
-    .submitted-export-actions .badge,
+
     .submitted-export-actions .btn {
-        flex: 0 0 auto;
+        font-size: 13px;
+        min-height: 30px;
+        padding-inline: 10px;
     }
-    .submitted-export-actions .btn {
-        min-height: 42px;
+
+    .bulk-action-bar {
+        margin: 0 0 6px;
+        padding: 6px 8px;
     }
+
+    .submitted-table-wrap {
+        border: 1px solid var(--submitted-border);
+        border-radius: 10px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
+        max-width: 100%;
+        overflow-x: hidden;
+        overflow-y: visible;
+    }
+
     .submitted-data-table {
         table-layout: fixed;
         width: 100%;
+        max-width: 100%;
     }
+
+    .submitted-data-table thead th {
+        background: #f8fafc;
+        border-bottom: 1px solid var(--submitted-border);
+        box-shadow: inset 0 -1px 0 #e7edf6;
+        color: #475569;
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: .04em;
+        padding: 8px 10px;
+        position: sticky;
+        text-transform: uppercase;
+        top: 0;
+        z-index: 2;
+    }
+
     .submitted-data-table th,
     .submitted-data-table td {
-        white-space: normal;
-        overflow-wrap: anywhere;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         word-break: normal;
     }
+
+    .submitted-data-table tbody td {
+        border-bottom: 1px solid #edf2f7;
+        font-size: 14px;
+        height: 54px;
+        padding: 6px 10px;
+        transition: background-color .14s ease, box-shadow .14s ease;
+        vertical-align: middle;
+    }
+
+    .submitted-data-table tbody tr:nth-child(even) {
+        background: var(--submitted-row);
+    }
+
+    .submitted-data-table tbody tr:hover {
+        background: #f6f9ff;
+        box-shadow: inset 2px 0 0 #c7d7fe;
+    }
+
+    .submitted-data-table tbody tr:has(.pdf-submission-check:checked) {
+        background: #f3f7ff;
+        box-shadow: inset 2px 0 0 #93b4ff;
+    }
+
     .submitted-data-table th:nth-child(1),
     .submitted-data-table td:nth-child(1) {
-        width: 5%;
-        min-width: 64px;
+        width: 4%;
+        text-align: center;
     }
+
     .submitted-data-table th:nth-child(2),
     .submitted-data-table td:nth-child(2) {
         width: 11%;
+        text-align: left;
     }
+
     .submitted-data-table th:nth-child(3),
     .submitted-data-table td:nth-child(3) {
         width: 15%;
+        text-align: left;
     }
+
     .submitted-data-table th:nth-child(4),
     .submitted-data-table td:nth-child(4) {
-        width: 24%;
+        width: 28%;
+        text-align: left;
     }
+
     .submitted-data-table th:nth-child(5),
     .submitted-data-table td:nth-child(5) {
-        width: 20%;
+        width: 16%;
+        text-align: left;
     }
+
     .submitted-data-table th:nth-child(6),
     .submitted-data-table td:nth-child(6) {
-        width: 16%;
+        width: 15%;
+        text-align: left;
     }
+
     .submitted-data-table th:nth-child(7),
     .submitted-data-table td:nth-child(7) {
-        width: 9%;
+        width: 11%;
+        text-align: right;
     }
-    .submitted-data-table td:nth-child(7) .btn {
-        width: 100%;
+
+    .submitted-actions-cell {
+        align-items: center;
+        justify-content: flex-end;
+        text-align: right;
+        overflow: visible;
+        vertical-align: middle;
+    }
+
+    .submitted-view-btn {
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 850;
+        line-height: 1.2;
+        min-height: 24px;
         min-width: 0;
-        white-space: normal;
+        padding: 3px 10px;
+        white-space: nowrap;
+        width: auto;
     }
-    .field-count-note { color: var(--text-muted); display: block; font-size: 12px; margin-top: 4px; white-space: nowrap; }
-    .status-chip-visual::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 999px; background: currentColor; vertical-align: middle; }
+
+    .cell-truncate {
+        display: block;
+        max-width: 100%;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .submitted-data-table .compact-check {
+        display: inline-flex;
+        margin: 0;
+    }
+
+    .submitted-data-table input[type="checkbox"] {
+        accent-color: #2563eb;
+        height: 16px;
+        width: 16px;
+    }
+
+    .field-count-note { color: var(--submitted-muted); display: block; font-size: 11px; line-height: 1.2; margin-top: 2px; white-space: nowrap; }
+
+    .status-chip-visual {
+        border-radius: 999px;
+        font-size: 11.5px;
+        gap: 5px;
+        line-height: 1;
+        min-height: 21px;
+        padding: 0 7px;
+        vertical-align: middle;
+    }
+
+    .status-chip-visual::before { content: ""; display: inline-block; width: 5px; height: 5px; margin-right: 5px; border-radius: 999px; background: currentColor; vertical-align: 1px; }
     tr.submitted-row-hidden { display: none; }
     tr[data-active="false"] { background: color-mix(in srgb, var(--surface-muted) 65%, transparent); }
     .saved-row-json { display: none; }
+    .submitted-pagination {
+        align-items: center;
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end;
+        margin: 8px 0 0;
+        padding: 0;
+    }
+
+    .submitted-pagination .btn,
+    .submitted-pagination .badge {
+        font-size: 12px;
+        min-height: 28px;
+        transition: background-color .14s ease, border-color .14s ease, color .14s ease, box-shadow .14s ease;
+    }
+
+    .submitted-pagination .btn:disabled {
+        background: #f8fafc;
+        border-color: #e5ebf3;
+        color: #98a2b3;
+        opacity: 1;
+    }
+
+    .submitted-pagination .btn:not(:disabled):hover {
+        background: #f3f7ff;
+        border-color: #cbdcff;
+        color: #1d4ed8;
+    }
+
+    .submitted-pagination #submittedPageInfo {
+        background: #eef4ff;
+        border-color: #d7e4ff;
+        color: #1e3a8a;
+        font-weight: 800;
+    }
+
     .json-preview { max-width: min(680px, 70vw); max-height: 220px; overflow: auto; margin-top: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: #f8fafc; color: var(--text); white-space: pre-wrap; word-break: break-word; font-size: 12px; }
     html[data-theme="dark"] .json-preview { background: #121a2d; }
     .saved-preview-json { max-height: 68vh; max-width: none; margin: 0; }
@@ -363,34 +719,110 @@
     .match-indicator.bad { background: #fee2e2; color: #991b1b; }
     .toast-stack { position: fixed; right: 20px; bottom: 20px; z-index: 100; display: grid; gap: 10px; width: min(380px, calc(100vw - 32px)); }
     .app-toast { border: 1px solid var(--border); border-left: 4px solid var(--primary); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-lg); color: var(--text); padding: 12px 14px; font-weight: 700; }
-    @@media (max-width: 1700px) {
+    @@media (max-width: 1320px) {
         .submitted-filter-grid {
-            grid-template-columns: minmax(260px, 1fr) minmax(170px, .7fr) minmax(170px, .7fr) minmax(170px, .7fr) 130px;
+            grid-template-columns: minmax(230px, 1fr) minmax(148px, .7fr) minmax(138px, .65fr) minmax(138px, .65fr) 112px;
         }
         .submitted-export-actions {
             grid-column: 1 / -1;
             justify-content: flex-end;
         }
     }
+
     @@media (max-width: 1080px) {
+        .submitted-page-hero,
+        .submitted-panel-head {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .submitted-header-actions,
+        .submitted-table-commandbar {
+            justify-content: flex-start;
+        }
+
         .submitted-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .submitted-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .submitted-search-field { grid-column: span 2; }
         .submitted-export-actions { grid-column: 1 / -1; justify-content: flex-start; }
     }
+
     @@media (max-width: 900px) {
         .submitted-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .submitted-search-field { grid-column: 1 / -1; }
         .submitted-export-actions { justify-content: flex-start; }
     }
+
     @@media (max-width: 720px) {
-        .submitted-data-head, .submitted-export-actions { align-items: stretch; flex-direction: column; }
-        .submitted-summary-grid, .submitted-filter-grid { grid-template-columns: 1fr; }
+        .submitted-page-hero,
+        .submitted-panel {
+            border-radius: 10px;
+            padding: 12px;
+        }
+
+        .submitted-header-actions,
+        .submitted-table-commandbar,
+        .submitted-export-actions {
+            align-items: stretch;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .submitted-back-btn,
+        .submitted-record-pill,
+        .segmented-control {
+            justify-content: center;
+            width: 100%;
+        }
+
+        .submitted-mode-counts {
+            justify-content: center;
+        }
+
+        .segmented-control {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .submitted-summary-grid,
+        .submitted-filter-grid {
+            grid-template-columns: 1fr;
+        }
+
         .submitted-search-field { grid-column: auto; }
         .submitted-export-actions {
             min-width: 0;
             white-space: normal;
         }
+
+        .submitted-table-wrap {
+            border-radius: 12px;
+            box-shadow: none;
+        }
+
+        .submitted-data-table tbody td {
+            height: auto;
+            padding: 8px 10px;
+        }
+
+        .submitted-actions-cell {
+            text-align: left;
+        }
+
+        .submitted-view-btn {
+            width: 100%;
+        }
+
+        .submitted-pagination {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .submitted-pagination .visible-count,
+        .submitted-pagination #submittedPageInfo {
+            justify-content: center;
+        }
+
         #savedSubmissionPreviewModal .detail-drawer { flex-basis: 100vw; width: 100vw; }
     }
 </style>
@@ -414,6 +846,7 @@
     const submittedPageInfo = document.getElementById('submittedPageInfo');
     const clearSubmittedFiltersBtn = document.getElementById('clearSubmittedFiltersBtn');
     const selectedPdfCount = document.getElementById('selectedPdfCount');
+    const submittedBulkActionBar = document.getElementById('submittedBulkActionBar');
     const downloadSelectedPdfExcelBtn = document.getElementById('downloadSelectedPdfExcelBtn');
     const submittedSaveSuccess = document.getElementById('submittedSaveSuccess');
     const savedSubmissionPreviewModal = document.getElementById('savedSubmissionPreviewModal');
@@ -479,6 +912,7 @@
             selectAllPdfSubmissions.indeterminate = checkedCount > 0 && checkedCount < visibleChecks.length;
         }
         if (selectedPdfCount) selectedPdfCount.textContent = `${checkedCount} selected`;
+        if (submittedBulkActionBar) submittedBulkActionBar.hidden = checkedCount === 0;
         if (downloadSelectedPdfExcelBtn) downloadSelectedPdfExcelBtn.disabled = checkedCount === 0;
         if (selectedPdfDownloadError && checkedCount > 0) selectedPdfDownloadError.hidden = true;
     };

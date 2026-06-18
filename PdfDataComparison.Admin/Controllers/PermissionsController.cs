@@ -16,7 +16,7 @@ public class PermissionsController(ApplicationDbContext dbContext, IRoleService 
     {
         ViewBag.Roles = await roleService.GetRolesAsync();
         ViewBag.SelectedRoleId = roleId;
-        ViewBag.Pages = await dbContext.PagePermissions.OrderBy(x => x.PageName).ToListAsync();
+        ViewBag.Pages = await dbContext.PagePermissions.AsNoTracking().OrderBy(x => x.PageName).ToListAsync();
         ViewBag.RolePermissions = string.IsNullOrWhiteSpace(roleId)
             ? new List<Domain.Entities.RolePermission>()
             : await permissionService.GetRolePermissionsAsync(roleId);
@@ -33,6 +33,7 @@ public class PermissionsController(ApplicationDbContext dbContext, IRoleService 
         }
 
         var pages = await dbContext.PagePermissions
+            .AsNoTracking()
             .OrderBy(x => x.PageName)
             .ToListAsync();
 

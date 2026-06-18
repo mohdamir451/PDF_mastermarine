@@ -49,46 +49,46 @@
         @if (Model.Items.Any())
         {
             <div class="table-wrap" id="usersTableWrap">
-                <table class="table" id="usersTable" data-sortable>
-                <thead>
-                <tr>
-                    <th><button type="button" class="sort-btn" data-sort-col="0">Name</button></th>
-                    <th><button type="button" class="sort-btn" data-sort-col="1">Email</button></th>
-                    <th><button type="button" class="sort-btn" data-sort-col="2">Department</button></th>
-                    <th><button type="button" class="sort-btn" data-sort-col="3">Status</button></th>
-                    <th><button type="button" class="sort-btn" data-sort-col="4">Roles</button></th>
-                    <th><button type="button" class="sort-btn" data-sort-col="5">Last Login</button></th>
-                    <th>Actions</th>
-                </tr>
-                </thead>
-                <tbody>
-                @foreach (var user in Model.Items)
-                {
+                <table class="table table-responsive-card" id="usersTable" data-sortable>
+                    <thead>
                     <tr>
-                        <td>
-                            <strong>@user.FullName</strong>
-                        </td>
-                        <td>@user.Email</td>
-                        <td>@user.Department</td>
-                        <td>
-                            <span class="badge @(user.IsActive ? "success" : "danger") status-chip">@(user.IsActive ? "Active" : "Inactive")</span>
-                        </td>
-                        <td>@string.Join(", ", user.Roles)</td>
-                        <td>@(user.LastLoginAt?.ToString("yyyy-MM-dd HH:mm") ?? "Never")</td>
-                        <td class="actions">
-                            <details class="row-menu">
-                                <summary>Actions</summary>
-                                <div class="row-menu-list">
-                                    <a asp-action="Edit" asp-route-id="@user.Id">Edit User</a>
-                                    <a asp-action="ResetPassword" asp-route-id="@user.Id">Reset Password</a>
-                                </div>
-                            </details>
-                        </td>
+                        <th><button type="button" class="sort-btn" data-sort-col="0">Name</button></th>
+                        <th><button type="button" class="sort-btn" data-sort-col="1">Email</button></th>
+                        <th><button type="button" class="sort-btn" data-sort-col="2">Department</button></th>
+                        <th><button type="button" class="sort-btn" data-sort-col="3">Status</button></th>
+                        <th><button type="button" class="sort-btn" data-sort-col="4">Roles</button></th>
+                        <th><button type="button" class="sort-btn" data-sort-col="5">Last Login</button></th>
+                        <th>Actions</th>
                     </tr>
-                }
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                    @foreach (var user in Model.Items)
+                    {
+                        <tr>
+                            <td data-label="Name">
+                                <strong>@user.FullName</strong>
+                            </td>
+                            <td data-label="Email">@user.Email</td>
+                            <td data-label="Department">@user.Department</td>
+                            <td data-label="Status">
+                                <span class="badge @(user.IsActive ? "success" : "danger") status-chip">@(user.IsActive ? "Active" : "Inactive")</span>
+                            </td>
+                            <td data-label="Roles">@string.Join(", ", user.Roles)</td>
+                            <td data-label="Last Login">@(user.LastLoginAt?.ToString("yyyy-MM-dd HH:mm") ?? "Never")</td>
+                            <td class="actions" data-label="Actions">
+                                <details class="row-menu">
+                                    <summary>Actions</summary>
+                                    <div class="row-menu-list">
+                                        <a asp-action="Edit" asp-route-id="@user.Id">Edit User</a>
+                                        <a asp-action="ResetPassword" asp-route-id="@user.Id">Reset Password</a>
+                                    </div>
+                                </details>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
 
             @if (Model.TotalPages > 1)
             {

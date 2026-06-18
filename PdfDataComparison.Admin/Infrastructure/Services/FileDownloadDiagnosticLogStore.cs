@@ -36,16 +36,26 @@ public class FileDownloadDiagnosticLogStore(IWebHostEnvironment environment) : I
     {
         if (!File.Exists(logPath)) return Array.Empty<DownloadDiagnosticLogEntryVm>();
 
+        take = Math.Clamp(take, 1, 1000);
         await FileLock.WaitAsync();
         try
         {
-            var lines = await File.ReadAllLinesAsync(logPath);
-            return lines
+            var queue = new Queue<string>(take);
+            await foreach (var line in File.ReadLinesAsync(logPath))
+            {
+                if (queue.Count == take)
+                {
+                    queue.Dequeue();
+                }
+
+                queue.Enqueue(line);
+            }
+
+            return queue
                 .Reverse()
                 .Where(line => !string.IsNullOrWhiteSpace(line))
                 .Select(TryDeserialize)
                 .Where(entry => entry != null)
-                .Take(Math.Max(1, take))
                 .Cast<DownloadDiagnosticLogEntryVm>()
                 .ToList();
         }

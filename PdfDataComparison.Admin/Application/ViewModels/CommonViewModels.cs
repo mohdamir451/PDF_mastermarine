@@ -190,7 +190,12 @@ public class ReportHistoryItemVm
 public class RoleFormVm
 {
     public string Id { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Role name is required.")]
+    [StringLength(100, ErrorMessage = "Role name cannot exceed 100 characters.")]
     public string Name { get; set; } = string.Empty;
+
+    [StringLength(250, ErrorMessage = "Description cannot exceed 250 characters.")]
     public string Description { get; set; } = string.Empty;
 }
 
@@ -230,19 +235,27 @@ public class ComparisonFieldVm
 
 public class ComparisonSubmitVm
 {
+    [Range(1, int.MaxValue, ErrorMessage = "A comparison job is required.")]
     public int JobId { get; set; }
+
+    [MinLength(1, ErrorMessage = "At least one comparison field is required.")]
     public List<ComparisonFieldInputVm> Fields { get; set; } = new();
 }
 
 public class ComparisonFieldInputVm
 {
+    [Range(1, int.MaxValue, ErrorMessage = "A comparison field is required.")]
     public int Id { get; set; }
     public string? ActualValue { get; set; }
 }
 
 public class LoginVm
 {
+    [Required(ErrorMessage = "Username is required.")]
     public string Username { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Password is required.")]
+    [DataType(DataType.Password)]
     public string Password { get; set; } = string.Empty;
     public bool RememberMe { get; set; }
 }

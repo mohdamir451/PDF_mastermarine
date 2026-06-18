@@ -8,7 +8,7 @@ namespace PdfDataComparison.Admin.Controllers;
 [Authorize]
 public class ProfileController(UserManager<ApplicationUser> userManager) : Controller
 {
-    public async Task<IActionResult> ChangePassword() => View();
+    public IActionResult ChangePassword() => View();
 
     [HttpPost]
     [ValidateAntiForgeryToken]

@@ -23,19 +23,34 @@ public class PermissionService(
 
         // Keep the full query server-side with joins so it works across older
         // SQL Server compatibility levels (avoids OPENJSON translation).
-        return await (
+        var rolePermissions = await (
             from ur in dbContext.UserRoles
             join rp in dbContext.RolePermissions on ur.RoleId equals rp.RoleId
             join pp in dbContext.PagePermissions on rp.PagePermissionId equals pp.Id
-            where ur.UserId == userId && rp.CanView
-            select pp.PermissionKey
+            where ur.UserId == userId
+            select new
+            {
+                pp.PermissionKey,
+                rp.CanView,
+                rp.CanCreate,
+                rp.CanEdit,
+                rp.CanDelete,
+                rp.CanSubmit,
+                rp.CanExport
+            }
         )
-            .Distinct()
+            .AsNoTracking()
             .ToListAsync();
+
+        return rolePermissions
+            .Where(x => GrantsPermission(x.PermissionKey, x.CanView, x.CanCreate, x.CanEdit, x.CanDelete, x.CanSubmit, x.CanExport))
+            .Select(x => x.PermissionKey)
+            .Distinct()
+            .ToList();
     }
 
     public Task<List<RolePermission>> GetRolePermissionsAsync(string roleId)
-        => dbContext.RolePermissions.Include(x => x.PagePermission).Where(x => x.RoleId == roleId).ToListAsync();
+        => dbContext.RolePermissions.AsNoTracking().Include(x => x.PagePermission).Where(x => x.RoleId == roleId).ToListAsync();
 
     public async Task UpsertRolePermissionsAsync(string roleId, IEnumerable<RolePermission> permissions)
     {
@@ -43,5 +58,22 @@ public class PermissionService(
         dbContext.RolePermissions.RemoveRange(existing);
         await dbContext.RolePermissions.AddRangeAsync(permissions);
         await dbContext.SaveChangesAsync();
+    }
+
+    private static bool GrantsPermission(
+        string permissionKey,
+        bool canView,
+        bool canCreate,
+        bool canEdit,
+        bool canDelete,
+        bool canSubmit,
+        bool canExport)
+    {
+        if (permissionKey.EndsWith(".Submit", StringComparison.OrdinalIgnoreCase)) return canSubmit;
+        if (permissionKey.EndsWith(".Export", StringComparison.OrdinalIgnoreCase)) return canExport;
+        if (permissionKey.EndsWith(".Edit", StringComparison.OrdinalIgnoreCase)) return canEdit;
+        if (permissionKey.EndsWith(".Create", StringComparison.OrdinalIgnoreCase)) return canCreate;
+        if (permissionKey.EndsWith(".Delete", StringComparison.OrdinalIgnoreCase)) return canDelete;
+        return canView;
     }
 }

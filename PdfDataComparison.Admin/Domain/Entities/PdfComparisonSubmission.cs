@@ -4,6 +4,7 @@ public class PdfComparisonSubmission
 {
     public int Id { get; set; }
     public string BillOfLadingNumber { get; set; } = string.Empty;
+    public string BillOfLadingNumberNormalized { get; set; } = string.Empty;
     public string PayloadJson { get; set; } = string.Empty;
     public string SourceFileName { get; set; } = string.Empty;
     public string SubmittedByUserId { get; set; } = string.Empty;

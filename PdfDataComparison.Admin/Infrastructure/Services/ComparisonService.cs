@@ -11,7 +11,10 @@ public class ComparisonService(ApplicationDbContext dbContext, IAuditService aud
 {
     public async Task<PagedResult<ComparisonJobListItemVm>> GetJobsAsync(string? search, int page, int pageSize)
     {
-        var query = dbContext.ComparisonJobs.AsQueryable();
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
+        var query = dbContext.ComparisonJobs.AsNoTracking().AsQueryable();
         if (!string.IsNullOrWhiteSpace(search))
         {
             query = query.Where(x => x.Title.Contains(search) || x.JobNumber.Contains(search));
@@ -35,7 +38,7 @@ public class ComparisonService(ApplicationDbContext dbContext, IAuditService aud
 
     public async Task<ComparisonScreenVm?> GetJobScreenAsync(int id)
     {
-        var job = await dbContext.ComparisonJobs.Include(x => x.Fields).FirstOrDefaultAsync(x => x.Id == id);
+        var job = await dbContext.ComparisonJobs.AsNoTracking().Include(x => x.Fields).FirstOrDefaultAsync(x => x.Id == id);
         if (job == null) return null;
 
         return new ComparisonScreenVm
@@ -60,11 +63,20 @@ public class ComparisonService(ApplicationDbContext dbContext, IAuditService aud
 
     public async Task<int> SubmitAsync(ComparisonSubmitVm model, string userId)
     {
-        var job = await dbContext.ComparisonJobs.Include(x => x.Fields).FirstAsync(x => x.Id == model.JobId);
+        var job = await dbContext.ComparisonJobs.Include(x => x.Fields).FirstOrDefaultAsync(x => x.Id == model.JobId);
+        if (job == null)
+        {
+            throw new InvalidOperationException("Comparison job was not found.");
+        }
 
         foreach (var fieldInput in model.Fields)
         {
-            var field = job.Fields.First(x => x.Id == fieldInput.Id);
+            var field = job.Fields.FirstOrDefault(x => x.Id == fieldInput.Id);
+            if (field == null)
+            {
+                throw new InvalidOperationException($"Comparison field {fieldInput.Id} was not found for job {model.JobId}.");
+            }
+
             field.ActualValue = fieldInput.ActualValue;
             field.IsMatch = Normalize(field.ExpectedValue) == Normalize(fieldInput.ActualValue);
             field.MismatchReason = field.IsMatch ? null : "Value differs after normalization";

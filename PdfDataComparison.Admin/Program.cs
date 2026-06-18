@@ -10,6 +10,7 @@ using PdfDataComparison.Admin.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,6 +24,9 @@ builder.Services
         options.Password.RequireDigit = true;
         options.Password.RequireNonAlphanumeric = true;
         options.Password.RequiredLength = 8;
+        options.Lockout.AllowedForNewUsers = true;
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
         options.SignIn.RequireConfirmedAccount = false;
     })
     .AddEntityFrameworkStores<ApplicationDbContext>()
@@ -32,12 +36,24 @@ builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/Account/Login";
     options.AccessDeniedPath = "/Account/AccessDenied";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Lax;
     options.SlidingExpiration = true;
-    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    options.ExpireTimeSpan = TimeSpan.FromHours(2);
 });
 
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+});
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient<IPdfExtractionClient, PdfExtractionClient>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(120);
+});
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database");
 
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
@@ -74,6 +90,7 @@ app.UseAuthorization();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Account}/{action=Login}/{id?}");
+app.MapHealthChecks("/health");
 
 using (var scope = app.Services.CreateScope())
 {
@@ -81,9 +98,14 @@ using (var scope = app.Services.CreateScope())
     {
         await ApplicationDbSeeder.SeedAsync(scope.ServiceProvider);
     }
-    catch
+    catch (Exception ex)
     {
-        // Ignore seed failures in local/dev startup to keep UI accessible even when SQL is unavailable.
+        var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+        logger.LogCritical(ex, "Database migration/seeding failed during startup.");
+        if (!app.Environment.IsDevelopment())
+        {
+            throw;
+        }
     }
 }
 

@@ -100,6 +100,11 @@ public class ExcelExportService : IExportService
             .ToArray();
 
         var safeValue = new string(safeChars);
+        if (safeValue.StartsWith('=') || safeValue.StartsWith('+') || safeValue.StartsWith('-') || safeValue.StartsWith('@'))
+        {
+            safeValue = "'" + safeValue;
+        }
+
         return safeValue.Length <= 32767 ? safeValue : safeValue[..32767];
     }
 }

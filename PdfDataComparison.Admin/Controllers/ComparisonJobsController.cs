@@ -11,7 +11,6 @@ using PdfDataComparison.Admin.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 
 namespace PdfDataComparison.Admin.Controllers;
 
@@ -20,11 +19,13 @@ public class ComparisonJobsController(
     IComparisonService comparisonService,
     ApplicationDbContext dbContext,
     IExportService exportService,
-    IConfiguration configuration,
+    IPdfExtractionClient pdfExtractionClient,
     IAuditService auditService,
     IDownloadDiagnosticLogStore diagnosticLogStore,
     ILogger<ComparisonJobsController> logger) : Controller
 {
+    private const long MaxPdfUploadBytes = 10 * 1024 * 1024;
+
     public async Task<IActionResult> Index(string? search, int page = 1)
     {
         var jobs = await comparisonService.GetJobsAsync(search, page, 10);
@@ -50,11 +51,13 @@ public class ComparisonJobsController(
         }
 
         var activeSubmissions = await dbContext.PdfComparisonSubmissions
+            .AsNoTracking()
             .Where(x => x.IsActive)
+            .Where(x => x.BillOfLadingNumberNormalized == normalizedBillOfLadingNumber)
             .Select(x => new { x.Id, x.BillOfLadingNumber })
             .ToListAsync();
 
-        var existing = activeSubmissions.FirstOrDefault(x => NormalizeToken(x.BillOfLadingNumber) == normalizedBillOfLadingNumber);
+        var existing = activeSubmissions.FirstOrDefault();
         return Ok(new
         {
             exists = existing != null,
@@ -77,6 +80,12 @@ public class ComparisonJobsController(
     [Authorize(Policy = PermissionCatalog.ComparisonSubmit)]
     public async Task<IActionResult> Submit(ComparisonSubmitVm vm)
     {
+        if (!ModelState.IsValid)
+        {
+            var screen = await comparisonService.GetJobScreenAsync(vm.JobId);
+            return screen == null ? NotFound() : View("Screen", screen);
+        }
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var submissionId = await comparisonService.SubmitAsync(vm, userId);
         return RedirectToAction("Details", "Reports", new { id = submissionId });
@@ -85,14 +94,22 @@ public class ComparisonJobsController(
     [Authorize(Policy = PermissionCatalog.ReportsExport)]
     public async Task<IActionResult> DownloadExcel(int submissionId)
     {
-        var submission = await dbContext.ComparisonSubmissions.FirstAsync(x => x.Id == submissionId);
-        var fields = await dbContext.ComparisonFields.Where(x => x.ComparisonJobId == submission.ComparisonJobId).ToListAsync();
+        var submission = await dbContext.ComparisonSubmissions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == submissionId);
+        if (submission == null) return NotFound();
+
+        var fields = await dbContext.ComparisonFields
+            .AsNoTracking()
+            .Where(x => x.ComparisonJobId == submission.ComparisonJobId)
+            .ToListAsync();
         var bytes = await exportService.GenerateComparisonExportAsync(submission, fields, User.Identity?.Name ?? "Unknown");
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"comparison-{submissionId}.xlsx");
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Policy = PermissionCatalog.ComparisonSubmit)]
     public async Task<IActionResult> SubmitIndexComparison(string rowsJson, string? sourceFileName)
     {
         if (string.IsNullOrWhiteSpace(rowsJson))
@@ -135,48 +152,49 @@ public class ComparisonJobsController(
         if (!string.IsNullOrWhiteSpace(billOfLadingNumber))
         {
             var normalizedBillOfLadingNumber = NormalizeToken(billOfLadingNumber);
+            await using var transaction = await dbContext.Database.BeginTransactionAsync();
+
             var existingActiveSubmissions = await dbContext.PdfComparisonSubmissions
                 .Where(x => x.IsActive)
+                .Where(x => x.BillOfLadingNumberNormalized == normalizedBillOfLadingNumber)
                 .ToListAsync();
 
-            foreach (var existingSubmission in existingActiveSubmissions.Where(x => NormalizeToken(x.BillOfLadingNumber) == normalizedBillOfLadingNumber))
+            foreach (var existingSubmission in existingActiveSubmissions)
             {
                 existingSubmission.IsActive = false;
                 replacedSubmissionIds.Add(existingSubmission.Id);
             }
+
+            var submission = CreatePdfSubmission(rows, sourceFileName, billOfLadingNumber, normalizedBillOfLadingNumber);
+            dbContext.PdfComparisonSubmissions.Add(submission);
+            await dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
+            await AuditPdfComparisonSubmittedAsync(submission, sourceFileName, exportRows.Count, replacedSubmissionIds);
+
+            return Ok(new
+            {
+                message = "PDF comparison saved successfully.",
+                submissionId = submission.Id,
+                redirectUrl = Url.Action(nameof(SubmittedPdfData))
+            });
         }
 
-        var submission = new PdfComparisonSubmission
-        {
-            BillOfLadingNumber = billOfLadingNumber,
-            PayloadJson = JsonSerializer.Serialize(rows),
-            SourceFileName = sourceFileName ?? string.Empty,
-            SubmittedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty,
-            SubmittedAt = DateTime.UtcNow,
-            IsActive = true
-        };
-
-        dbContext.PdfComparisonSubmissions.Add(submission);
+        var newSubmission = CreatePdfSubmission(rows, sourceFileName, billOfLadingNumber, string.Empty);
+        dbContext.PdfComparisonSubmissions.Add(newSubmission);
         await dbContext.SaveChangesAsync();
-        await auditService.LogAsync(
-            "PdfComparisonSubmitted",
-            $"PdfComparisonSubmission:{submission.Id}",
-            replacedSubmissionIds.Count == 0
-                ? $"PDF comparison saved for {sourceFileName ?? "uploaded.pdf"} with {exportRows.Count} rows"
-                : $"PDF comparison saved for {sourceFileName ?? "uploaded.pdf"} with {exportRows.Count} rows; replaced active PDF submissions: {string.Join(", ", replacedSubmissionIds)}",
-            User.FindFirstValue(ClaimTypes.NameIdentifier),
-            User.Identity?.Name ?? "Unknown");
+        await AuditPdfComparisonSubmittedAsync(newSubmission, sourceFileName, exportRows.Count, replacedSubmissionIds);
 
         return Ok(new
         {
             message = "PDF comparison saved successfully.",
-            submissionId = submission.Id,
+            submissionId = newSubmission.Id,
             redirectUrl = Url.Action(nameof(SubmittedPdfData))
         });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Policy = PermissionCatalog.ReportsExport)]
     public async Task<IActionResult> DownloadSelectedPdfSubmissionExcel(List<int> selectedPdfSubmissionIds)
     {
         var errorReference = HttpContext.TraceIdentifier;
@@ -201,14 +219,13 @@ public class ComparisonJobsController(
                 selectedIds);
 
             var activeSubmissions = await dbContext.PdfComparisonSubmissions
+                .AsNoTracking()
                 .Where(x => x.IsActive)
+                .Where(x => selectedIds.Contains(x.Id))
                 .OrderBy(x => x.Id)
                 .ToListAsync();
 
-            var selectedIdSet = selectedIds.ToHashSet();
-            var submissions = activeSubmissions
-                .Where(x => selectedIdSet.Contains(x.Id))
-                .ToList();
+            var submissions = activeSubmissions;
 
             if (submissions.Count == 0)
             {
@@ -356,70 +373,58 @@ public class ComparisonJobsController(
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UploadAndCompare(IFormFile pdfFile)
+    [Authorize(Policy = PermissionCatalog.ComparisonEdit)]
+    public async Task<IActionResult> UploadAndCompare(IFormFile pdfFile, CancellationToken cancellationToken)
     {
         if (pdfFile == null || pdfFile.Length == 0)
         {
             return BadRequest(new { error = "Please select a PDF file." });
         }
 
-        if (!pdfFile.ContentType.Contains("pdf", StringComparison.OrdinalIgnoreCase) &&
-            !pdfFile.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+        if (pdfFile.Length > MaxPdfUploadBytes)
+        {
+            return BadRequest(new { error = "PDF file is too large. Maximum allowed size is 10 MB." });
+        }
+
+        if (!string.Equals(Path.GetExtension(pdfFile.FileName), ".pdf", StringComparison.OrdinalIgnoreCase))
         {
             return BadRequest(new { error = "Only PDF files are supported." });
         }
 
-        var configuredEndpoint = configuration["PdfExtractionApi:ExtractBlEndpoint"];
-        if (string.IsNullOrWhiteSpace(configuredEndpoint) || !Uri.TryCreate(configuredEndpoint, UriKind.Absolute, out var rawEndpoint))
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError, new
-            {
-                error = "PDF extraction API endpoint is not configured. Set PdfExtractionApi:ExtractBlEndpoint in appsettings."
-            });
-        }
-
-        var endpoint = NormalizeExtractBlEndpoint(rawEndpoint);
-
         byte[] pdfBytes;
         using (var ms = new MemoryStream())
         {
-            await pdfFile.CopyToAsync(ms);
+            await pdfFile.CopyToAsync(ms, cancellationToken);
             pdfBytes = ms.ToArray();
         }
 
-        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
-        using var content = new MultipartFormDataContent();
-
-        // Add common field names to maximize compatibility with FastAPI handlers.
-        var fileContent = new ByteArrayContent(pdfBytes);
-        fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/pdf");
-        content.Add(fileContent, "file", pdfFile.FileName);
-
-        var fileContentAlt1 = new ByteArrayContent(pdfBytes);
-        fileContentAlt1.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/pdf");
-        content.Add(fileContentAlt1, "pdf_file", pdfFile.FileName);
-
-        var fileContentAlt2 = new ByteArrayContent(pdfBytes);
-        fileContentAlt2.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/pdf");
-        content.Add(fileContentAlt2, "upload_file", pdfFile.FileName);
-
-        HttpResponseMessage apiResponse;
+        (bool Success, int StatusCode, string ResponseText) apiResponse;
         try
         {
-            apiResponse = await client.PostAsync(endpoint, content);
+            apiResponse = await pdfExtractionClient.ExtractAsync(pdfBytes, pdfFile.FileName, cancellationToken);
         }
         catch (Exception ex)
         {
-            return StatusCode(StatusCodes.Status502BadGateway, new { error = $"API call failed: {ex.Message}" });
+            logger.LogError(ex, "PDF extraction API call failed. TraceIdentifier={TraceIdentifier}; FileName={FileName}; Length={Length}",
+                HttpContext.TraceIdentifier,
+                Path.GetFileName(pdfFile.FileName),
+                pdfFile.Length);
+            return StatusCode(StatusCodes.Status502BadGateway, new
+            {
+                error = $"PDF extraction service is unavailable. Error reference: {HttpContext.TraceIdentifier}"
+            });
         }
 
-        var responseText = await apiResponse.Content.ReadAsStringAsync();
-        if (!apiResponse.IsSuccessStatusCode)
+        var responseText = apiResponse.ResponseText;
+        if (!apiResponse.Success)
         {
-            return StatusCode((int)apiResponse.StatusCode, new
+            logger.LogWarning("PDF extraction API returned an error. TraceIdentifier={TraceIdentifier}; StatusCode={StatusCode}; Response={Response}",
+                HttpContext.TraceIdentifier,
+                apiResponse.StatusCode,
+                responseText);
+            return StatusCode(StatusCodes.Status502BadGateway, new
             {
-                error = "API returned an error response.",
-                details = responseText
+                error = $"PDF extraction service returned an error. Error reference: {HttpContext.TraceIdentifier}"
             });
         }
 
@@ -436,10 +441,12 @@ public class ComparisonJobsController(
         }
         catch (JsonException)
         {
+            logger.LogWarning("PDF extraction API returned invalid JSON. TraceIdentifier={TraceIdentifier}; Response={Response}",
+                HttpContext.TraceIdentifier,
+                responseText);
             return StatusCode(StatusCodes.Status502BadGateway, new
             {
-                error = "API did not return valid JSON.",
-                details = responseText
+                error = $"PDF extraction service returned an invalid response. Error reference: {HttpContext.TraceIdentifier}"
             });
         }
 
@@ -447,8 +454,7 @@ public class ComparisonJobsController(
         {
             return Ok(new
             {
-                fileName = pdfFile.FileName,
-                pdfBase64 = Convert.ToBase64String(pdfBytes),
+                fileName = Path.GetFileName(pdfFile.FileName),
                 matches = 0,
                 mismatches = 0,
                 comparisons = rows,
@@ -461,13 +467,42 @@ public class ComparisonJobsController(
 
         return Ok(new
         {
-            fileName = pdfFile.FileName,
-            pdfBase64 = Convert.ToBase64String(pdfBytes),
+            fileName = Path.GetFileName(pdfFile.FileName),
             matches,
             mismatches,
             comparisons = rows
         });
     }
+
+    private PdfComparisonSubmission CreatePdfSubmission(
+        IEnumerable<IndexComparisonExportRow> rows,
+        string? sourceFileName,
+        string billOfLadingNumber,
+        string normalizedBillOfLadingNumber)
+        => new()
+        {
+            BillOfLadingNumber = billOfLadingNumber,
+            BillOfLadingNumberNormalized = normalizedBillOfLadingNumber,
+            PayloadJson = JsonSerializer.Serialize(rows),
+            SourceFileName = Path.GetFileName(sourceFileName ?? "uploaded.pdf"),
+            SubmittedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty,
+            SubmittedAt = DateTime.UtcNow,
+            IsActive = true
+        };
+
+    private Task AuditPdfComparisonSubmittedAsync(
+        PdfComparisonSubmission submission,
+        string? sourceFileName,
+        int rowCount,
+        IReadOnlyCollection<int> replacedSubmissionIds)
+        => auditService.LogAsync(
+            "PdfComparisonSubmitted",
+            $"PdfComparisonSubmission:{submission.Id}",
+            replacedSubmissionIds.Count == 0
+                ? $"PDF comparison saved for {Path.GetFileName(sourceFileName ?? "uploaded.pdf")} with {rowCount} rows"
+                : $"PDF comparison saved for {Path.GetFileName(sourceFileName ?? "uploaded.pdf")} with {rowCount} rows; replaced active PDF submissions: {string.Join(", ", replacedSubmissionIds)}",
+            User.FindFirstValue(ClaimTypes.NameIdentifier),
+            User.Identity?.Name ?? "Unknown");
 
     private static List<CompareRowDto> BuildComparisonRows(JsonElement root)
     {
@@ -741,6 +776,11 @@ public class ComparisonJobsController(
             .ToArray();
 
         var safeValue = new string(safeChars);
+        if (safeValue.StartsWith('=') || safeValue.StartsWith('+') || safeValue.StartsWith('-') || safeValue.StartsWith('@'))
+        {
+            safeValue = "'" + safeValue;
+        }
+
         return safeValue.Length <= 32767 ? safeValue : safeValue[..32767];
     }
 

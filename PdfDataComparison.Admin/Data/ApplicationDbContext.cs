@@ -34,7 +34,22 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
             .HasIndex(x => x.BillOfLadingNumber);
 
         builder.Entity<PdfComparisonSubmission>()
+            .HasIndex(x => new { x.IsActive, x.BillOfLadingNumberNormalized });
+
+        builder.Entity<PdfComparisonSubmission>()
+            .HasIndex(x => new { x.IsActive, x.SubmittedAt });
+
+        builder.Entity<PdfComparisonSubmission>()
             .Property(x => x.IsActive)
             .HasDefaultValue(true);
+
+        builder.Entity<AuditLog>()
+            .HasIndex(x => x.Timestamp);
+
+        builder.Entity<ComparisonJob>()
+            .HasIndex(x => new { x.Status, x.CreatedAt });
+
+        builder.Entity<ComparisonField>()
+            .HasIndex(x => x.ComparisonJobId);
     }
 }

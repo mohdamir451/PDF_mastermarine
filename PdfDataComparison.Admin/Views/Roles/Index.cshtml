@@ -16,7 +16,7 @@
     @if (Model.Any())
     {
         <div class="table-wrap">
-            <table class="table">
+            <table class="table table-responsive-card">
                 <thead>
                 <tr>
                     <th>Role</th>
@@ -28,9 +28,9 @@
                 @foreach (var role in Model)
                 {
                     <tr>
-                        <td><strong>@role.Name</strong></td>
-                        <td>@role.Description</td>
-                        <td class="actions">
+                        <td data-label="Role"><strong>@role.Name</strong></td>
+                        <td data-label="Description">@role.Description</td>
+                        <td class="actions" data-label="Actions">
                             <a asp-action="Edit" asp-route-id="@role.Id" class="btn btn-ghost">Edit</a>
                         </td>
                     </tr>

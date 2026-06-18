@@ -33,7 +33,7 @@
         @if (Model.Any())
         {
             <div class="table-wrap" id="auditTableWrap">
-                <table class="table" id="auditTable" data-sortable>
+                <table class="table table-responsive-card" id="auditTable" data-sortable>
                 <thead>
                 <tr>
                     <th><button type="button" class="sort-btn" data-sort-col="0">Action</button></th>
@@ -48,12 +48,12 @@
                 @foreach (var log in Model)
                 {
                     <tr>
-                        <td><span class="badge neutral">@log.Action</span></td>
-                        <td>@log.PerformedByName</td>
-                        <td>@log.TargetEntity</td>
-                        <td>@TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(log.Timestamp, DateTimeKind.Utc), auditTimeZone).ToString("yyyy-MM-dd HH:mm:ss")</td>
-                        <td>@log.Timestamp.ToString("u")</td>
-                        <td>@(string.IsNullOrWhiteSpace(log.Notes) ? "-" : log.Notes)</td>
+                        <td data-label="Action"><span class="badge neutral">@log.Action</span></td>
+                        <td data-label="Performed By">@log.PerformedByName</td>
+                        <td data-label="Target">@log.TargetEntity</td>
+                        <td data-label="Timestamp (IST)">@TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(log.Timestamp, DateTimeKind.Utc), auditTimeZone).ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td data-label="UTC">@log.Timestamp.ToString("u")</td>
+                        <td data-label="Notes">@(string.IsNullOrWhiteSpace(log.Notes) ? "-" : log.Notes)</td>
                     </tr>
                 }
                 </tbody>

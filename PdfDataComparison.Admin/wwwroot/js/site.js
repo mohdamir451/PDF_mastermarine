@@ -273,18 +273,25 @@ function initConfirmModal() {
   const confirmOk = modal.querySelector('[data-confirm-ok]');
   const confirmCancel = modal.querySelector('[data-confirm-cancel]');
   let pendingAction = null;
+  let returnFocusTo = null;
 
   const closeModal = () => {
     modal.classList.remove('show');
     modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('dialog-open');
     pendingAction = null;
+    if (returnFocusTo) returnFocusTo.focus();
+    returnFocusTo = null;
   };
 
   const openModal = (message, action) => {
+    returnFocusTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     pendingAction = action;
     if (modalMessage) modalMessage.textContent = message || 'Are you sure you want to continue?';
     modal.classList.add('show');
     modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('dialog-open');
+    window.requestAnimationFrame(() => (confirmCancel || confirmOk)?.focus());
   };
 
   document.querySelectorAll('form[data-confirm]').forEach((form) => {
@@ -316,19 +323,71 @@ function initConfirmModal() {
   if (confirmOk) confirmOk.addEventListener('click', () => { if (pendingAction) pendingAction(); closeModal(); });
   if (confirmCancel) confirmCancel.addEventListener('click', closeModal);
   modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
+  modal.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeModal();
+  });
 }
 
 function initLoadingPanels() {
   const panels = document.querySelectorAll('[data-loading-panel]');
   if (panels.length === 0) return;
 
-  setTimeout(() => {
-    panels.forEach((panel) => {
-      panel.hidden = true;
-      const dataPanel = panel.parentElement?.querySelector('[data-data-panel]');
-      if (dataPanel) dataPanel.hidden = false;
+  panels.forEach((panel) => {
+    panel.hidden = true;
+    const dataPanel = panel.parentElement?.querySelector('[data-data-panel]');
+    if (dataPanel) dataPanel.hidden = false;
+  });
+}
+
+function initDialogAccessibility() {
+  let lastFocusedElement = null;
+  const modalSelector = '.modal-backdrop, .drawer-backdrop';
+  const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+  const getOpenDialogs = () => Array.from(document.querySelectorAll(modalSelector))
+    .filter((modal) => modal.classList.contains('show') || modal.classList.contains('is-open'));
+
+  const syncBodyState = () => {
+    document.body.classList.toggle('dialog-open', getOpenDialogs().length > 0);
+  };
+
+  document.querySelectorAll(modalSelector).forEach((modal) => {
+    const observer = new MutationObserver(() => {
+      const isOpen = modal.classList.contains('show') || modal.classList.contains('is-open');
+      syncBodyState();
+      if (!isOpen) return;
+
+      lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : lastFocusedElement;
+      const target = modal.querySelector(focusableSelector) || modal.querySelector('[role="dialog"]') || modal;
+      window.requestAnimationFrame(() => target.focus({ preventScroll: true }));
     });
-  }, 240);
+    observer.observe(modal, { attributes: true, attributeFilter: ['class', 'aria-hidden'] });
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Tab') return;
+    const openDialogs = getOpenDialogs();
+    const activeDialog = openDialogs[openDialogs.length - 1];
+    if (!activeDialog) return;
+
+    const focusable = Array.from(activeDialog.querySelectorAll(focusableSelector))
+      .filter((el) => !el.disabled && el.offsetParent !== null);
+    if (focusable.length === 0) {
+      event.preventDefault();
+      activeDialog.focus();
+      return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
 }
 
 function initFormBusyState() {
@@ -516,6 +575,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initComparisonScreen();
   initPasswordToggle();
   initConfirmModal();
+  initDialogAccessibility();
   initLoadingPanels();
   initFormBusyState();
   initRowMenuDismiss();

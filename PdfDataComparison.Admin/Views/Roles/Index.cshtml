@@ -448,7 +448,13 @@
     const next = document.getElementById('roleNextPageBtn');
     const pageInfo = document.getElementById('rolePageInfo');
     const count = document.getElementById('roleTableCount');
+    const body = document.querySelector('#roleTable tbody');
     const rows = Array.from(document.querySelectorAll('#roleTable tbody tr'));
+    const emptyRow = document.createElement('tr');
+    emptyRow.className = 'table-empty-row';
+    emptyRow.hidden = true;
+    emptyRow.innerHTML = '<td colspan="4">No roles match the current search.</td>';
+    body?.appendChild(emptyRow);
     let currentPage = 1;
 
     if (!rows.length) return;
@@ -465,6 +471,7 @@
         rows.forEach((row) => {
             row.classList.toggle('role-row-hidden', !visibleSet.has(row));
         });
+        emptyRow.hidden = matched.length !== 0;
 
         if (count) count.textContent = `${matched.length}/${rows.length}`;
         if (pageInfo) pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;

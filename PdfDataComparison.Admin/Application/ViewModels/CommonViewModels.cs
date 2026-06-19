@@ -38,6 +38,7 @@ public class UserCreateVm
     public string Department { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Password is required.")]
+    [StringLength(100, MinimumLength = 8, ErrorMessage = "Password must be at least 8 characters.")]
     [DataType(DataType.Password)]
     public string Password { get; set; } = string.Empty;
 
@@ -81,6 +82,7 @@ public class UserResetPasswordVm
     public string Email { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "New password is required.")]
+    [StringLength(100, MinimumLength = 8, ErrorMessage = "New password must be at least 8 characters.")]
     [DataType(DataType.Password)]
     public string NewPassword { get; set; } = string.Empty;
 

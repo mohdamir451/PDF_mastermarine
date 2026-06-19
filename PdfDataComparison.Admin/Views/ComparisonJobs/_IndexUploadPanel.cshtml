@@ -1,0 +1,22 @@
+<div id="pdfUploadPanel">
+        <form id="pdfCompareForm" class="grid" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <div class="form-group">
+                <label for="pdfFileInput">PDF File</label>
+                <input id="pdfFileInput" name="pdfFile" type="file" accept="application/pdf,.pdf" required />
+            </div>
+
+            <div class="action-bar">
+                <div class="table-tools">
+                    <button type="submit" class="btn btn-primary" id="pdfCompareSubmitBtn">Upload & Compare</button>
+                    <span class="badge neutral" id="pdfCompareStatus">Waiting for upload</span>
+                </div>
+                <div class="table-tools">
+                    <span class="badge success" id="matchCountBadge" hidden>Matches: 0</span>
+                    <span class="badge danger" id="mismatchCountBadge" hidden>Issues: 0</span>
+                </div>
+            </div>
+        </form>
+
+        <div class="alert warning" id="pdfCompareError" hidden></div>
+    </div>

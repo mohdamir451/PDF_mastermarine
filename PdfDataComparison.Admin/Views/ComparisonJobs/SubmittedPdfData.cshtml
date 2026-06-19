@@ -77,8 +77,8 @@
 
             <div class="submitted-table-commandbar">
                 <div class="segmented-control" role="group" aria-label="Submitted PDF data mode">
-                    <button type="button" class="segment-btn is-active" data-pdf-mode="active">Active Records</button>
-                    <button type="button" class="segment-btn" data-pdf-mode="history">Inactive History</button>
+                    <button type="button" class="segment-btn is-active" data-pdf-mode="active" aria-pressed="true">Active Records</button>
+                    <button type="button" class="segment-btn" data-pdf-mode="history" aria-pressed="false">Inactive History</button>
                 </div>
                 <div class="submitted-mode-counts">
                     <span class="badge success">@activePdfSubmissions.Count active</span>
@@ -168,15 +168,15 @@
             <button type="button" class="btn btn-ghost btn-small" data-close-modal="savedSubmissionPreviewModal">Close</button>
         </div>
         <div class="drawer-tabs" role="tablist" aria-label="Saved data preview tabs">
-            <button type="button" class="drawer-tab is-active" data-saved-preview-tab="summary">Summary</button>
-            <button type="button" class="drawer-tab" data-saved-preview-tab="values">Field Values</button>
-            <button type="button" class="drawer-tab" data-saved-preview-tab="json">Raw JSON</button>
+            <button type="button" class="drawer-tab is-active" id="savedPreviewSummaryTab" role="tab" aria-selected="true" aria-controls="savedPreviewSummaryPane" data-saved-preview-tab="summary">Summary</button>
+            <button type="button" class="drawer-tab" id="savedPreviewValuesTab" role="tab" aria-selected="false" aria-controls="savedPreviewValuesPane" data-saved-preview-tab="values">Field Values</button>
+            <button type="button" class="drawer-tab" id="savedPreviewJsonTab" role="tab" aria-selected="false" aria-controls="savedPreviewJsonPane" data-saved-preview-tab="json">Raw JSON</button>
         </div>
         <div class="drawer-body">
-            <div class="drawer-pane is-active" data-saved-preview-pane="summary">
+            <div class="drawer-pane is-active" id="savedPreviewSummaryPane" role="tabpanel" aria-labelledby="savedPreviewSummaryTab" data-saved-preview-pane="summary">
                 <div class="saved-summary-list" id="savedPreviewSummary"></div>
             </div>
-            <div class="drawer-pane" data-saved-preview-pane="values">
+            <div class="drawer-pane" id="savedPreviewValuesPane" role="tabpanel" aria-labelledby="savedPreviewValuesTab" data-saved-preview-pane="values" hidden>
                 <div class="matrix-filters saved-values-filter">
                     <input id="savedPreviewSearch" type="search" placeholder="Search saved fields..." />
                     <label class="checkbox-row compact-check">
@@ -202,7 +202,7 @@
                     <p>Adjust search or mismatch filter.</p>
                 </div>
             </div>
-            <div class="drawer-pane" data-saved-preview-pane="json">
+            <div class="drawer-pane" id="savedPreviewJsonPane" role="tabpanel" aria-labelledby="savedPreviewJsonTab" data-saved-preview-pane="json" hidden>
                 <pre class="json-preview saved-preview-json" id="savedPreviewJson"></pre>
             </div>
         </div>
@@ -834,6 +834,12 @@
     const selectedPdfDownloadError = document.getElementById('selectedPdfDownloadError');
     const pdfSubmissionChecks = Array.from(document.querySelectorAll('.pdf-submission-check'));
     const pdfSubmissionRows = Array.from(document.querySelectorAll('[data-pdf-submission-row]'));
+    const pdfSubmissionTableBody = document.querySelector('#jobsTable tbody');
+    const submittedEmptyFilterRow = document.createElement('tr');
+    submittedEmptyFilterRow.className = 'table-empty-row';
+    submittedEmptyFilterRow.hidden = true;
+    submittedEmptyFilterRow.innerHTML = '<td colspan="7">No submitted PDF records match the current filters.</td>';
+    pdfSubmissionTableBody?.appendChild(submittedEmptyFilterRow);
     const pdfModeButtons = Array.from(document.querySelectorAll('[data-pdf-mode]'));
     const jobsQuickFilter = document.getElementById('jobsQuickFilter');
     const jobsVisibleCount = document.getElementById('jobsVisibleCount');
@@ -943,6 +949,7 @@
         if (submittedPageInfo) submittedPageInfo.textContent = `Page ${submittedCurrentPage} of ${totalPages}`;
         if (submittedPrevPageBtn) submittedPrevPageBtn.disabled = submittedCurrentPage <= 1;
         if (submittedNextPageBtn) submittedNextPageBtn.disabled = submittedCurrentPage >= totalPages;
+        submittedEmptyFilterRow.hidden = matchedRows.length !== 0;
         syncSelectAllPdfSubmissions();
     };
     const parseSavedRows = (rawJson) => {
@@ -973,8 +980,16 @@
         if (savedPreviewNoValues) savedPreviewNoValues.hidden = visible > 0;
     };
     const setSavedPreviewTab = (tabName) => {
-        savedPreviewTabs.forEach((tab) => tab.classList.toggle('is-active', tab.dataset.savedPreviewTab === tabName));
-        savedPreviewPanes.forEach((pane) => pane.classList.toggle('is-active', pane.dataset.savedPreviewPane === tabName));
+        savedPreviewTabs.forEach((tab) => {
+            const active = tab.dataset.savedPreviewTab === tabName;
+            tab.classList.toggle('is-active', active);
+            tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        savedPreviewPanes.forEach((pane) => {
+            const active = pane.dataset.savedPreviewPane === tabName;
+            pane.classList.toggle('is-active', active);
+            pane.hidden = !active;
+        });
     };
     const renderSavedSummary = (summary) => {
         if (!savedPreviewSummary) return;
@@ -1019,8 +1034,12 @@
     });
     pdfSubmissionChecks.forEach((checkbox) => checkbox.addEventListener('change', syncSelectAllPdfSubmissions));
     pdfModeButtons.forEach((button) => button.addEventListener('click', () => {
-        submittedPdfMode = button.dataset.pdfMode || 'active';
-        pdfModeButtons.forEach((item) => item.classList.toggle('is-active', item === button));
+            submittedPdfMode = button.dataset.pdfMode || 'active';
+            pdfModeButtons.forEach((item) => {
+                const active = item === button;
+                item.classList.toggle('is-active', active);
+                item.setAttribute('aria-pressed', active ? 'true' : 'false');
+            });
         pdfSubmissionChecks.forEach((checkbox) => { checkbox.checked = false; });
         applySubmittedPdfFilters(true);
     }));

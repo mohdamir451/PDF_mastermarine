@@ -1,0 +1,76 @@
+<div class="modal-backdrop compare-modal-backdrop" id="pdfPreviewModal" aria-hidden="true">
+    <div class="modal-card compare-modal-card" role="dialog" aria-modal="true" aria-labelledby="pdfPreviewModalTitle">
+        <div class="compare-modal-head">
+            <h3 id="pdfPreviewModalTitle">PDF Preview</h3>
+            <button type="button" class="btn btn-ghost btn-small" data-close-modal="pdfPreviewModal">Close</button>
+        </div>
+        <div class="compare-modal-body pdf-modal-body">
+            <iframe id="pdfPreviewModalFrame" class="compare-modal-pdf-frame" title="PDF Preview Popup"></iframe>
+        </div>
+    </div>
+</div>
+
+<div class="modal-backdrop compare-modal-backdrop" id="matrixPreviewModal" aria-hidden="true">
+    <div class="modal-card compare-modal-card compare-modal-card-wide" role="dialog" aria-modal="true" aria-labelledby="matrixPreviewModalTitle">
+        <div class="compare-modal-head">
+            <h3 id="matrixPreviewModalTitle">Field Comparison Matrix</h3>
+            <button type="button" class="btn btn-ghost btn-small" data-close-modal="matrixPreviewModal">Close</button>
+        </div>
+        <div class="compare-modal-body">
+            <div class="table-wrap" id="matrixPreviewTableWrap"></div>
+        </div>
+    </div>
+</div>
+
+<div class="drawer-backdrop" id="savedSubmissionPreviewModal" aria-hidden="true">
+    <aside class="detail-drawer" role="dialog" aria-modal="true" aria-label="Saved PDF data details">
+        <div class="drawer-head">
+            <div>
+                <h3 id="savedPreviewTitle">Saved PDF Data</h3>
+                <p class="form-help" id="savedPreviewMeta">Review saved payload details.</p>
+            </div>
+            <button type="button" class="btn btn-ghost btn-small" data-close-modal="savedSubmissionPreviewModal">Close</button>
+        </div>
+        <div class="drawer-tabs" role="tablist" aria-label="Saved data preview tabs">
+            <button type="button" class="drawer-tab is-active" id="savedPreviewSummaryTab" role="tab" aria-selected="true" aria-controls="savedPreviewSummaryPane" data-saved-preview-tab="summary">Summary</button>
+            <button type="button" class="drawer-tab" id="savedPreviewValuesTab" role="tab" aria-selected="false" aria-controls="savedPreviewValuesPane" data-saved-preview-tab="values">Field Values</button>
+            <button type="button" class="drawer-tab" id="savedPreviewJsonTab" role="tab" aria-selected="false" aria-controls="savedPreviewJsonPane" data-saved-preview-tab="json">Raw JSON</button>
+        </div>
+        <div class="drawer-body">
+            <div class="drawer-pane is-active" id="savedPreviewSummaryPane" role="tabpanel" aria-labelledby="savedPreviewSummaryTab" data-saved-preview-pane="summary">
+                <div class="saved-summary-list" id="savedPreviewSummary"></div>
+            </div>
+            <div class="drawer-pane" id="savedPreviewValuesPane" role="tabpanel" aria-labelledby="savedPreviewValuesTab" data-saved-preview-pane="values" hidden>
+                <div class="matrix-filters saved-values-filter">
+                    <input id="savedPreviewSearch" type="search" placeholder="Search saved fields..." />
+                    <label class="checkbox-row compact-check">
+                        <input id="savedPreviewIssuesOnly" type="checkbox" />
+                        <span>Issues only</span>
+                    </label>
+                </div>
+                <div class="table-wrap saved-values-wrap">
+                    <table class="table validation-table">
+                        <thead>
+                            <tr>
+                                <th>Field</th>
+                                <th>Expected API Value</th>
+                                <th>Actual PDF Value</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="savedPreviewFieldBody"></tbody>
+                    </table>
+                </div>
+                <div class="empty-state compact-empty" id="savedPreviewNoValues" hidden>
+                    <h3>No saved fields match</h3>
+                    <p>Adjust search or mismatch filter.</p>
+                </div>
+            </div>
+            <div class="drawer-pane" id="savedPreviewJsonPane" role="tabpanel" aria-labelledby="savedPreviewJsonTab" data-saved-preview-pane="json" hidden>
+                <pre class="json-preview saved-preview-json" id="savedPreviewJson"></pre>
+            </div>
+        </div>
+    </aside>
+</div>
+
+<div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>

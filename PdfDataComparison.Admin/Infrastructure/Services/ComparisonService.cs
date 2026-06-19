@@ -69,6 +69,28 @@ public class ComparisonService(ApplicationDbContext dbContext, IAuditService aud
             throw new InvalidOperationException("Comparison job was not found.");
         }
 
+        if (model.Fields.Count != job.Fields.Count)
+        {
+            throw new InvalidOperationException("All comparison fields must be submitted before the job can be completed.");
+        }
+
+        var duplicateFieldIds = model.Fields
+            .GroupBy(x => x.Id)
+            .Where(x => x.Count() > 1)
+            .Select(x => x.Key)
+            .ToList();
+        if (duplicateFieldIds.Count > 0)
+        {
+            throw new InvalidOperationException($"Duplicate comparison field values were submitted: {string.Join(", ", duplicateFieldIds)}.");
+        }
+
+        var submittedFieldIds = model.Fields.Select(x => x.Id).ToHashSet();
+        var missingFieldIds = job.Fields.Select(x => x.Id).Where(x => !submittedFieldIds.Contains(x)).ToList();
+        if (missingFieldIds.Count > 0)
+        {
+            throw new InvalidOperationException($"Missing comparison field values: {string.Join(", ", missingFieldIds)}.");
+        }
+
         foreach (var fieldInput in model.Fields)
         {
             var field = job.Fields.FirstOrDefault(x => x.Id == fieldInput.Id);
@@ -77,9 +99,19 @@ public class ComparisonService(ApplicationDbContext dbContext, IAuditService aud
                 throw new InvalidOperationException($"Comparison field {fieldInput.Id} was not found for job {model.JobId}.");
             }
 
+            if (field.IsRequired && string.IsNullOrWhiteSpace(fieldInput.ActualValue))
+            {
+                throw new InvalidOperationException($"{field.FieldLabel} is required before submission.");
+            }
+
             field.ActualValue = fieldInput.ActualValue;
             field.IsMatch = Normalize(field.ExpectedValue) == Normalize(fieldInput.ActualValue);
             field.MismatchReason = field.IsMatch ? null : "Value differs after normalization";
+
+            if (field.IsBlocking && !field.IsMatch)
+            {
+                throw new InvalidOperationException($"{field.FieldLabel} has a blocking mismatch and must be resolved before submission.");
+            }
         }
 
         job.Status = "Submitted";

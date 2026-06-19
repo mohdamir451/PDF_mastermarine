@@ -1,0 +1,13 @@
+<section class="card" id="pdfCompareSection">
+    <h3 class="card-title">PDF API Compare</h3>
+
+    <div class="ux-process-steps" aria-label="PDF validation process">
+        <div class="ux-process-step is-active" data-comparison-step="upload"><b>1</b><div><strong>Upload</strong><span>Select the source PDF.</span></div></div>
+        <div class="ux-process-step" data-comparison-step="compare"><b>2</b><div><strong>Compare</strong><span>Extract and compare fields.</span></div></div>
+        <div class="ux-process-step" data-comparison-step="resolve"><b>3</b><div><strong>Resolve</strong><span>Review any mismatches.</span></div></div>
+        <div class="ux-process-step" data-comparison-step="save"><b>4</b><div><strong>Save</strong><span>Submit validated data.</span></div></div>
+    </div>
+
+    @await Html.PartialAsync("_IndexUploadPanel")
+    @await Html.PartialAsync("_IndexValidationWorkspace")
+</section>

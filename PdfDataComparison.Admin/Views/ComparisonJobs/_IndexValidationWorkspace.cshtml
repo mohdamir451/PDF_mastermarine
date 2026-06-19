@@ -1,0 +1,135 @@
+<div id="pdfCompareResult" class="validation-shell" hidden>
+        <div class="validation-summary-grid" aria-label="Comparison summary">
+            <div class="validation-summary-card">
+                <strong id="summaryTotalFields">0</strong>
+                <span>Total Fields</span>
+            </div>
+            <div class="validation-summary-card">
+                <strong id="summaryMatches">0</strong>
+                <span>Matches</span>
+            </div>
+            <div class="validation-summary-card issue">
+                <strong id="mismatchCount">0</strong>
+                <span>Issues</span>
+            </div>
+            <div class="validation-summary-card accuracy">
+                <strong id="summaryAccuracy">0%</strong>
+                <span>Accuracy</span>
+            </div>
+        </div>
+        <div class="validation-progress" aria-label="Validation progress">
+            <div class="validation-progress-label">
+                <span>Validation Progress</span>
+                <strong id="validationProgressText">0 / 0 Fields Validated</strong>
+            </div>
+            <div class="validation-progress-track"><span id="validationProgressBar"></span></div>
+        </div>
+        <div class="alert warning ux-validation-alert" id="matrixValidationAlert" role="alert" hidden></div>
+
+        <div class="validation-toolbar sticky-primary-action">
+            <div class="validation-title">
+                <h3>Validation Workspace</h3>
+                <p class="form-help">Review evidence, resolve issues, then save the validated record.</p>
+            </div>
+            <div class="workspace-command-bar">
+                <details class="workspace-command-secondary ux-command-group" open>
+                    <summary>View & Navigation</summary>
+                    <div class="ux-command-group-body" aria-label="View and issue navigation controls">
+                        <button type="button" class="btn btn-secondary is-active" data-workspace-view="side-by-side">Side by Side</button>
+                        <button type="button" class="btn btn-ghost" data-workspace-view="pdf-focus">PDF Only</button>
+                        <button type="button" class="btn btn-ghost" data-workspace-view="matrix-focus">Matrix Only</button>
+                        <button type="button" class="btn btn-ghost" id="prevMismatchBtn">Previous Issue</button>
+                        <span class="issue-counter-pill" id="issueCounterPill">Issue 0 of 0</span>
+                        <button type="button" class="btn btn-ghost" id="nextMismatchBtn">Next Issue</button>
+                    </div>
+                </details>
+                <div class="workspace-command-secondary" aria-label="Filter controls">
+                    <label for="matrixSearchInput" class="sr-only">Search fields</label>
+                    <input id="matrixSearchInput" type="search" placeholder="Search fields or values..." />
+                    <select id="matrixStatusFilter" aria-label="Filter by status">
+                        <option value="all" selected>All statuses</option>
+                        <option value="issue">Issues only</option>
+                        <option value="match">Matches only</option>
+                    </select>
+                </div>
+                <div class="workspace-command-secondary ux-primary-actions" aria-label="Export controls">
+                    <label class="issue-toggle compact-check">
+                        <input id="mismatchOnlyToggle" type="checkbox" />
+                        <span class="toggle-track" aria-hidden="true"></span>
+                        <span>Show issues only</span>
+                    </label>
+                    <button type="button" class="btn btn-ghost" id="openPdfModalBtn" title="Open PDF popup" aria-label="Open PDF popup">Open PDF</button>
+                    <button type="button" class="btn btn-ghost" id="openMatrixModalBtn" title="Open matrix popup" aria-label="Open matrix popup">Open Matrix</button>
+                    <button type="button" class="btn btn-secondary" onclick="refreshPdf()">Refresh</button>
+                    <button type="button" class="btn btn-secondary" id="uploadAnotherPdfBtn">Upload PDF</button>
+                    <button type="button" class="btn btn-primary" id="indexSubmitBtn" hidden>Save Changes</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="comparisonLayout" class="validation-workspace side-by-side">
+            <section class="workspace-panel pdf-panel" aria-label="PDF viewer panel">
+                <div class="workspace-panel-head">
+                    <div>
+                        <h3>PDF Viewer</h3>
+                        <span id="pdfSourceLabel">Uploaded PDF</span>
+                    </div>
+                    <div class="pdf-viewer-tools" aria-label="PDF controls">
+                        <button type="button" class="btn btn-ghost btn-small" onclick="refreshPdf()">Refresh</button>
+                        <span class="badge neutral">Page 1</span>
+                        <button type="button" class="btn btn-ghost btn-small" aria-label="Zoom out">−</button>
+                        <button type="button" class="btn btn-ghost btn-small" aria-label="Zoom in">+</button>
+                    </div>
+                </div>
+                <div class="pdf-scroll-region">
+                    <div class="pdf-selection-pulse" id="pdfSelectionPulse" hidden></div>
+                    <iframe id="uploadedPdfFrame" class="pdf-frame" title="Uploaded PDF preview"></iframe>
+                </div>
+            </section>
+
+            <div class="workspace-resizer primary-resizer" role="separator" tabindex="0" aria-label="Resize PDF and comparison matrix"></div>
+
+            <section class="workspace-panel matrix-panel" aria-label="Field comparison matrix panel">
+                <div class="workspace-panel-head matrix-head">
+                    <div>
+                        <h3>Field Comparison Matrix</h3>
+                        <span><strong id="matrixFieldCount">0 fields</strong> · <strong id="visibleMismatchCount">0</strong> visible issues</span>
+                    </div>
+                </div>
+                <aside class="issue-panel" aria-label="Issues found">
+                    <div class="issue-panel-head"><strong id="issuePanelTitle">Issues Found (0)</strong></div>
+                    <div class="issue-list" id="issueList"></div>
+                </aside>
+                <div class="matrix-table-wrap">
+                    <table class="table validation-table" id="pdfCompareTable">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Field</th>
+                                <th>API Value</th>
+                                <th>PDF Value</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pdfCompareTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <div class="workspace-resizer details-resizer" role="separator" tabindex="0" aria-label="Resize matrix and details panel"></div>
+
+            <aside class="workspace-panel field-details-panel" aria-label="Selected field details">
+                <div class="workspace-panel-head">
+                    <div>
+                        <h3>Field Details</h3>
+                        <span id="selectedFieldStatus">No field selected</span>
+                    </div>
+                </div>
+                <div class="field-detail-body" id="fieldDetailBody">
+                    <div class="empty-state compact-empty">
+                        <h3>Select a field</h3>
+                        <p>Choose a row to inspect source values, status, and validation action.</p>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>

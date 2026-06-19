@@ -15,6 +15,18 @@
 }
 
 <section class="ops-dashboard">
+    <section class="ux-dashboard-priority" aria-label="Priority dashboard insight">
+        <div>
+            <p>Priority Focus</p>
+            <h3>@(Model.PdfSubmissionsNeedingReview > 0 ? "Review PDF records with issues" : "Validation queue is healthy")</h3>
+            <span>@(Model.PdfSubmissionsNeedingReview > 0 ? "Start with active records that need review before working on new submissions." : "No submitted PDF records currently need review. Continue monitoring incoming validations.")</span>
+        </div>
+        <div>
+            <strong>@Model.PdfSubmissionsNeedingReview.ToString("N0")</strong>
+            <a asp-controller="ComparisonJobs" asp-action="SubmittedPdfData" class="btn btn-primary">Open Review Queue</a>
+        </div>
+    </section>
+
     <div class="ops-top-grid">
         <section class="ops-summary-panel">
             <div>

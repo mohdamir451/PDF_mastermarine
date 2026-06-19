@@ -10,6 +10,7 @@
 <body>
 <div class="app-shell" id="appShell">
     @await Html.PartialAsync("_Sidebar")
+    <button type="button" class="sidebar-scrim" id="sidebarScrim" aria-label="Close navigation" hidden></button>
     <div class="main-panel">
         @await Html.PartialAsync("_Topbar")
         <main class="content-wrapper" id="mainContent">
@@ -46,90 +47,6 @@
 </form>
 
 <script src="~/js/site.js"></script>
-<script>
-(() => {
-    const warningAfterMs = 25 * 60 * 1000;
-    const logoutAfterMs = 30 * 60 * 1000;
-    const storageKey = `pdf-admin-draft:${location.pathname}`;
-    const modal = document.getElementById('idleTimeoutModal');
-    const stayBtn = document.getElementById('idleStaySignedInBtn');
-    const logoutBtn = document.getElementById('idleLogoutNowBtn');
-    const idleLogoutForm = document.getElementById('idleLogoutForm');
-    let warningTimer = 0;
-    let logoutTimer = 0;
-
-    const saveDraft = () => {
-        const fields = Array.from(document.querySelectorAll('input, textarea, select'))
-            .filter((field) => field.name || field.id)
-            .filter((field) => !['password', 'file', 'hidden'].includes((field.type || '').toLowerCase()));
-        const draft = {};
-        fields.forEach((field) => {
-            const key = field.name || field.id;
-            draft[key] = field.type === 'checkbox' ? field.checked : field.value;
-        });
-        if (Object.keys(draft).length > 0) {
-            sessionStorage.setItem(storageKey, JSON.stringify(draft));
-        }
-    };
-
-    const restoreDraft = () => {
-        const raw = sessionStorage.getItem(storageKey);
-        if (!raw) return;
-        try {
-            const draft = JSON.parse(raw);
-            Object.entries(draft).forEach(([key, value]) => {
-                const field = document.querySelector(`[name="${CSS.escape(key)}"], #${CSS.escape(key)}`);
-                if (!field || field.value) return;
-                if (field.type === 'checkbox') field.checked = Boolean(value);
-                else field.value = value;
-            });
-        } catch {
-            sessionStorage.removeItem(storageKey);
-        }
-    };
-
-    const showIdleWarning = () => {
-        saveDraft();
-        if (!modal) return;
-        modal.classList.add('show');
-        modal.setAttribute('aria-hidden', 'false');
-    };
-
-    const hideIdleWarning = () => {
-        if (!modal) return;
-        modal.classList.remove('show');
-        modal.setAttribute('aria-hidden', 'true');
-    };
-
-    const resetIdleTimers = () => {
-        window.clearTimeout(warningTimer);
-        window.clearTimeout(logoutTimer);
-        hideIdleWarning();
-        warningTimer = window.setTimeout(showIdleWarning, warningAfterMs);
-        logoutTimer = window.setTimeout(() => {
-            saveDraft();
-            if (idleLogoutForm) idleLogoutForm.submit();
-        }, logoutAfterMs);
-    };
-
-    restoreDraft();
-    document.addEventListener('input', saveDraft);
-    document.addEventListener('submit', (event) => {
-        if (event.target instanceof HTMLFormElement && event.target.matches('[data-clear-draft-on-submit]')) {
-            sessionStorage.removeItem(storageKey);
-        }
-    }, true);
-    ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach((eventName) => {
-        document.addEventListener(eventName, resetIdleTimers, { passive: true });
-    });
-    if (stayBtn) stayBtn.addEventListener('click', resetIdleTimers);
-    if (logoutBtn) logoutBtn.addEventListener('click', () => {
-        saveDraft();
-        if (idleLogoutForm) idleLogoutForm.submit();
-    });
-    resetIdleTimers();
-})();
-</script>
 @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

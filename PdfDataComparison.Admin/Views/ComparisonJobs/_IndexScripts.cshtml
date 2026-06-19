@@ -1,0 +1,1267 @@
+<script>
+(() => {
+    window.addEventListener('load', () => {
+        document.body.classList.add('sidebar-collapsed');
+    });
+
+    const form = document.getElementById('pdfCompareForm');
+    if (!form) return;
+
+    const fileInput = document.getElementById('pdfFileInput');
+    const uploadPanel = document.getElementById('pdfUploadPanel');
+    const submitBtn = document.getElementById('pdfCompareSubmitBtn');
+    const statusBadge = document.getElementById('pdfCompareStatus');
+    const errorBox = document.getElementById('pdfCompareError');
+    const resultWrap = document.getElementById('pdfCompareResult');
+    const pdfFrame = document.getElementById('uploadedPdfFrame');
+    const body = document.getElementById('pdfCompareTableBody');
+    const matchBadge = document.getElementById('matchCountBadge');
+    const mismatchBadge = document.getElementById('mismatchCountBadge');
+    const matrixFieldCount = document.getElementById('matrixFieldCount');
+    const visibleMismatchCount = document.getElementById('visibleMismatchCount');
+    const mismatchCount = document.getElementById('mismatchCount');
+    const validationProgressText = document.getElementById('validationProgressText');
+    const validationProgressBar = document.getElementById('validationProgressBar');
+    const issueCounterPill = document.getElementById('issueCounterPill');
+    const issuePanelTitle = document.getElementById('issuePanelTitle');
+    const issueList = document.getElementById('issueList');
+    const indexSubmitBtn = document.getElementById('indexSubmitBtn');
+    const comparisonSteps = Array.from(document.querySelectorAll('[data-comparison-step]'));
+    const matrixValidationAlert = document.getElementById('matrixValidationAlert');
+    const comparisonLayout = document.getElementById('comparisonLayout');
+    const mismatchOnlyToggle = document.getElementById('mismatchOnlyToggle');
+    const prevMismatchBtn = document.getElementById('prevMismatchBtn');
+    const nextMismatchBtn = document.getElementById('nextMismatchBtn');
+    const matrixSearchInput = document.getElementById('matrixSearchInput');
+    const matrixStatusFilter = document.getElementById('matrixStatusFilter');
+    const uploadAnotherBtn = document.getElementById('uploadAnotherPdfBtn');
+    const openPdfModalBtn = document.getElementById('openPdfModalBtn');
+    const openMatrixModalBtn = document.getElementById('openMatrixModalBtn');
+    const pdfPreviewModal = document.getElementById('pdfPreviewModal');
+    const matrixPreviewModal = document.getElementById('matrixPreviewModal');
+    const pdfPreviewModalFrame = document.getElementById('pdfPreviewModalFrame');
+    const matrixPreviewTableWrap = document.getElementById('matrixPreviewTableWrap');
+    const selectAllPdfSubmissions = document.getElementById('selectAllPdfSubmissions');
+    const selectedPdfDownloadForm = document.getElementById('selectedPdfDownloadForm');
+    const selectedPdfDownloadError = document.getElementById('selectedPdfDownloadError');
+    const pdfSubmissionChecks = Array.from(document.querySelectorAll('.pdf-submission-check'));
+    const pdfSubmissionRows = Array.from(document.querySelectorAll('[data-pdf-submission-row]'));
+    const pdfModeButtons = Array.from(document.querySelectorAll('[data-pdf-mode]'));
+    const jobsQuickFilter = document.getElementById('jobsQuickFilter');
+    const jobsVisibleCount = document.getElementById('jobsVisibleCount');
+    const submittedStatusFilter = document.getElementById('submittedStatusFilter');
+    const submittedDateFrom = document.getElementById('submittedDateFrom');
+    const submittedDateTo = document.getElementById('submittedDateTo');
+    const submittedPageSize = document.getElementById('submittedPageSize');
+    const submittedPrevPageBtn = document.getElementById('submittedPrevPageBtn');
+    const submittedNextPageBtn = document.getElementById('submittedNextPageBtn');
+    const submittedPageInfo = document.getElementById('submittedPageInfo');
+    const clearSubmittedFiltersBtn = document.getElementById('clearSubmittedFiltersBtn');
+    const clearSubmittedFiltersEmptyBtn = document.getElementById('clearSubmittedFiltersEmptyBtn');
+    const submittedNoResults = document.getElementById('submittedNoResults');
+    const selectedPdfCount = document.getElementById('selectedPdfCount');
+    const downloadSelectedPdfExcelBtn = document.getElementById('downloadSelectedPdfExcelBtn');
+    const submittedSaveSuccess = document.getElementById('submittedSaveSuccess');
+    const savedSubmissionPreviewModal = document.getElementById('savedSubmissionPreviewModal');
+    const savedPreviewTitle = document.getElementById('savedPreviewTitle');
+    const savedPreviewMeta = document.getElementById('savedPreviewMeta');
+    const savedPreviewJson = document.getElementById('savedPreviewJson');
+    const savedPreviewSummary = document.getElementById('savedPreviewSummary');
+    const savedPreviewFieldBody = document.getElementById('savedPreviewFieldBody');
+    const savedPreviewSearch = document.getElementById('savedPreviewSearch');
+    const savedPreviewIssuesOnly = document.getElementById('savedPreviewIssuesOnly');
+    const savedPreviewNoValues = document.getElementById('savedPreviewNoValues');
+    const savedPreviewTabs = Array.from(document.querySelectorAll('[data-saved-preview-tab]'));
+    const savedPreviewPanes = Array.from(document.querySelectorAll('[data-saved-preview-pane]'));
+    const toastStack = document.getElementById('toastStack');
+    const summaryTotalFields = document.getElementById('summaryTotalFields');
+    const summaryMatches = document.getElementById('summaryMatches');
+    const summaryAccuracy = document.getElementById('summaryAccuracy');
+    const selectedFieldStatus = document.getElementById('selectedFieldStatus');
+    const fieldDetailBody = document.getElementById('fieldDetailBody');
+    const workspaceViewButtons = Array.from(document.querySelectorAll('[data-workspace-view]'));
+    const primaryResizer = document.querySelector('.primary-resizer');
+    const detailsResizer = document.querySelector('.details-resizer');
+    const pdfSelectionPulse = document.getElementById('pdfSelectionPulse');
+
+    let matrixRows = [];
+    let currentSourceFileName = '';
+    let selectedRow = null;
+    let currentPdfPreviewUrl = '';
+
+    const normalizeValue = (value) => (value ?? '').toString().trim().toLowerCase();
+    const getDownloadFileName = (disposition, fallback) => {
+        const parts = (disposition || '').split(';').map((part) => part.trim());
+        const encodedPart = parts.find((part) => part.toLowerCase().startsWith('filename*='));
+        if (encodedPart) {
+            const encodedValue = encodedPart.substring(encodedPart.indexOf('=') + 1).replace(/^UTF-8''/i, '').replace(/^"|"$/g, '');
+            try { return decodeURIComponent(encodedValue); } catch { return encodedValue || fallback; }
+        }
+
+        const plainPart = parts.find((part) => part.toLowerCase().startsWith('filename='));
+        if (plainPart) {
+            return plainPart.substring(plainPart.indexOf('=') + 1).replace(/^"|"$/g, '') || fallback;
+        }
+
+        return fallback;
+    };
+
+    const showToast = (message) => {
+        if (!toastStack) return;
+        const toast = document.createElement('div');
+        toast.className = 'app-toast';
+        toast.textContent = message;
+        toastStack.appendChild(toast);
+        window.setTimeout(() => {
+            toast.remove();
+        }, 5200);
+    };
+
+    const setStatus = (text, cls = 'neutral') => {
+        statusBadge.textContent = text;
+        statusBadge.className = `badge ${cls}`;
+    };
+
+    const showError = (text) => {
+        errorBox.hidden = false;
+        errorBox.textContent = text;
+    };
+
+    const clearError = () => {
+        errorBox.hidden = true;
+        errorBox.textContent = '';
+    };
+
+    const setPdfPreviewFromFile = (file) => {
+        if (currentPdfPreviewUrl) {
+            URL.revokeObjectURL(currentPdfPreviewUrl);
+            currentPdfPreviewUrl = '';
+        }
+
+        if (!file) {
+            pdfFrame.removeAttribute('src');
+            return;
+        }
+
+        currentPdfPreviewUrl = URL.createObjectURL(file);
+        pdfFrame.src = currentPdfPreviewUrl;
+    };
+
+    const setSubmitAvailability = (isEnabled) => {
+        if (!indexSubmitBtn) return;
+        indexSubmitBtn.hidden = !isEnabled;
+        indexSubmitBtn.disabled = !isEnabled;
+    };
+
+    const setComparisonStep = (stepName) => {
+        const order = ['upload', 'compare', 'resolve', 'save'];
+        const activeIndex = Math.max(0, order.indexOf(stepName));
+        comparisonSteps.forEach((step) => {
+            const index = order.indexOf(step.dataset.comparisonStep || '');
+            step.classList.toggle('is-active', index === activeIndex);
+            step.classList.toggle('is-complete', index >= 0 && index < activeIndex);
+        });
+    };
+
+    const getRowState = (row) => {
+        const expected = normalizeValue(row.dataset.expected);
+        const input = row.querySelector('[data-actual-input]');
+        const actualRaw = input && input.value ? input.value : '';
+        const actual = normalizeValue(actualRaw);
+        const hasExpected = expected.length > 0;
+        const hasActual = actual.length > 0;
+        const isMatch = hasExpected ? hasActual && expected === actual : hasActual;
+        const statusText = !hasActual ? 'Needs Review' : isMatch ? (hasExpected ? 'Match' : 'Manual Entry') : 'Mismatch';
+        const statusClass = isMatch ? 'ok' : (!hasActual ? 'warn' : 'bad');
+        const statusIcon = isMatch ? '✓' : (!hasActual ? '⚠' : '✕');
+        const reason = !hasActual
+                ? 'Actual PDF value is blank or has not been confirmed.'
+                : !hasExpected
+                    ? 'Expected API value is blank; Actual PDF value was entered manually.'
+                    : isMatch
+                        ? 'Values match after normalization.'
+                        : 'API and PDF values differ after normalization.';
+
+        return { actualRaw, isMatch, statusText, statusClass, statusIcon, reason };
+    };
+
+    const updateSummary = (total, issues) => {
+        const matches = Math.max(0, total - issues);
+        const accuracy = total > 0 ? Math.round((matches / total) * 100) : 0;
+        if (summaryTotalFields) summaryTotalFields.textContent = String(total);
+        if (summaryMatches) summaryMatches.textContent = String(matches);
+        if (summaryAccuracy) summaryAccuracy.textContent = `${accuracy}%`;
+        if (validationProgressText) validationProgressText.textContent = `${matches} / ${total} Fields Validated`;
+        if (validationProgressBar) validationProgressBar.style.width = `${accuracy}%`;
+    };
+
+    const renderIssuePanel = (issueRows) => {
+        if (issuePanelTitle) issuePanelTitle.textContent = `Issues Found (${issueRows.length})`;
+        if (issueCounterPill) {
+            const current = selectedRow ? issueRows.indexOf(selectedRow) + 1 : 0;
+            issueCounterPill.textContent = `Issue ${Math.max(current, 0)} of ${issueRows.length}`;
+        }
+        if (!issueList) return;
+        issueList.innerHTML = '';
+        if (issueRows.length === 0) {
+            const empty = document.createElement('span');
+            empty.className = 'badge success';
+            empty.textContent = 'All fields validated';
+            issueList.appendChild(empty);
+            return;
+        }
+        issueRows.forEach((row) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = `Issue: ${row.dataset.field || 'Field'}`;
+            button.classList.toggle('is-active', row === selectedRow);
+            button.addEventListener('click', () => selectRow(row, true));
+            issueList.appendChild(button);
+        });
+    };
+
+    const renderFieldDetails = (row) => {
+        if (!fieldDetailBody || !selectedFieldStatus) return;
+
+        if (!row) {
+            selectedFieldStatus.textContent = 'No field selected';
+            fieldDetailBody.innerHTML = `
+                <div class="empty-state compact-empty">
+                    <h3>Select a field</h3>
+                    <p>Choose a row to inspect source values, status, and validation action.</p>
+                </div>`;
+            return;
+        }
+
+        const state = getRowState(row);
+        const field = row.dataset.field || '';
+        const expected = row.dataset.expectedRaw || '';
+        const input = row.querySelector('[data-actual-input]');
+        const actual = input ? input.value : '';
+        selectedFieldStatus.textContent = state.statusText;
+        fieldDetailBody.innerHTML = `
+            <div class="field-detail-block">
+                <span>Field name</span>
+                <strong></strong>
+            </div>
+            <div class="field-detail-block">
+                <span>Expected API value</span>
+                <p></p>
+            </div>
+            <div class="field-detail-block">
+                <span>Actual PDF value</span>
+                <p></p>
+            </div>
+            <div class="field-detail-block">
+                <span>Match status</span>
+                <strong>${state.statusText}</strong>
+            </div>
+            <div class="field-detail-block">
+                <span>Difference reason</span>
+                <p>${state.reason}</p>
+            </div>
+            <div class="field-detail-block">
+                <span>Validation action</span>
+                <p>${state.isMatch ? 'No action required.' : 'Review the PDF evidence and update the Actual PDF value if needed.'}</p>
+            </div>`;
+
+        const blocks = fieldDetailBody.querySelectorAll('.field-detail-block');
+        blocks[0].querySelector('strong').textContent = field || '-';
+        blocks[1].querySelector('p').textContent = expected || '-';
+        blocks[2].querySelector('p').textContent = actual || '-';
+    };
+
+    const selectRow = (row, shouldScroll = false) => {
+        if (!row) {
+            if (selectedRow) selectedRow.classList.remove('is-selected');
+            selectedRow = null;
+            renderFieldDetails(null);
+            return;
+        }
+        if (selectedRow) selectedRow.classList.remove('is-selected');
+        selectedRow = row;
+        selectedRow.classList.add('is-selected');
+        renderFieldDetails(selectedRow);
+        if (shouldScroll) {
+            selectedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        const pdfY = Number.parseFloat(selectedRow.dataset.pdfY || '');
+        const pdfRegion = document.querySelector('.pdf-scroll-region');
+        if (Number.isFinite(pdfY) && pdfRegion) {
+            pdfRegion.scrollTo({ top: pdfY, behavior: 'smooth' });
+        }
+        if (pdfSelectionPulse) {
+            const top = Number.isFinite(pdfY) ? Math.max(18, pdfY + 18) : 22;
+            pdfSelectionPulse.hidden = false;
+            pdfSelectionPulse.style.top = `${top}px`;
+            pdfSelectionPulse.style.animation = 'none';
+            void pdfSelectionPulse.offsetWidth;
+            pdfSelectionPulse.style.animation = 'pdfPulse 1.15s ease-out';
+        }
+        renderIssuePanel(matrixRows.filter((x) => !getRowState(x).isMatch));
+    };
+
+    const openModal = (modal) => {
+        if (!modal) return;
+        modal.classList.add('show');
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+    };
+
+    const closeModal = (modal) => {
+        if (!modal) return;
+        modal.classList.remove('show');
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+    };
+
+    const cloneMatrixForModal = () => {
+        if (!matrixPreviewTableWrap) return;
+        matrixPreviewTableWrap.innerHTML = '';
+        const sourceTable = document.getElementById('pdfCompareTable');
+        if (!sourceTable) return;
+
+        const clonedTable = sourceTable.cloneNode(true);
+        clonedTable.removeAttribute('id');
+        clonedTable.querySelectorAll('[id]').forEach((element) => element.removeAttribute('id'));
+
+        const sourceInputs = Array.from(sourceTable.querySelectorAll('[data-actual-input]'));
+        const clonedInputs = Array.from(clonedTable.querySelectorAll('[data-actual-input]'));
+        clonedInputs.forEach((input, index) => {
+            const sourceValue = sourceInputs[index] ? sourceInputs[index].value : input.value;
+            input.value = sourceValue || '';
+            if (input.tagName === 'TEXTAREA') {
+                input.textContent = sourceValue || '';
+            }
+            input.readOnly = true;
+            input.classList.add('is-readonly');
+        });
+
+        matrixPreviewTableWrap.appendChild(clonedTable);
+    };
+
+    const createValueBlock = (value, compareValue) => {
+        const block = document.createElement('div');
+        block.className = 'matrix-value';
+        const text = (value ?? '').toString();
+        const compareWords = new Set(normalizeValue(compareValue).split(/\s+/).filter(Boolean));
+        text.split(/(\s+)/).forEach((part) => {
+            if (!part) return;
+            if (/^\s+$/.test(part)) {
+                block.appendChild(document.createTextNode(part));
+                return;
+            }
+            const span = document.createElement('span');
+            const normalized = normalizeValue(part);
+            span.textContent = part;
+            if (compareWords.size > 0 && normalized && !compareWords.has(normalized)) span.className = 'diff-word';
+            block.appendChild(span);
+        });
+        return block;
+    };
+
+    const autosizeInput = (input) => {
+        if (!input) return;
+        input.style.height = 'auto';
+        input.style.height = `${Math.min(Math.max(input.scrollHeight, 30), 140)}px`;
+    };
+
+    const renderRows = (rows) => {
+        body.innerHTML = '';
+        matrixRows = [];
+        selectedRow = null;
+        renderFieldDetails(null);
+
+        const fragment = document.createDocumentFragment();
+        rows.forEach((row, index) => {
+            const tr = document.createElement('tr');
+            tr.className = 'comparison-row';
+            tr.dataset.expected = (row.apiValue ?? '').toString();
+            tr.dataset.expectedRaw = (row.apiValue ?? '').toString();
+            tr.dataset.field = (row.field || '').toString();
+            tr.dataset.rowIndex = String(index);
+            tr.dataset.blocking = (!row.isMatch).toString().toLowerCase();
+            if (row.pdfY || row.y || row.top) tr.dataset.pdfY = (row.pdfY || row.y || row.top).toString();
+
+            const hasExpected = normalizeValue(row.apiValue).length > 0;
+            const hasActual = normalizeValue(row.pdfValue).length > 0;
+            const isMatch = hasExpected && hasActual && normalizeValue(row.apiValue) === normalizeValue(row.pdfValue);
+
+            const tdMatch = document.createElement('td');
+            const indicator = document.createElement('span');
+            const initialState = !hasActual
+                ? { statusClass: 'warn', statusIcon: '⚠', statusText: 'Needs Review' }
+                : isMatch
+                    ? { statusClass: 'ok', statusIcon: '✓', statusText: 'Match' }
+                    : { statusClass: 'bad', statusIcon: '✕', statusText: 'Mismatch' };
+            indicator.className = `match-indicator ${initialState.statusClass}`;
+            indicator.textContent = `${initialState.statusIcon} ${initialState.statusText}`;
+            tdMatch.appendChild(indicator);
+
+            const tdField = document.createElement('td');
+            const strong = document.createElement('strong');
+            strong.className = 'matrix-field-name';
+            strong.textContent = (row.field || '').toString();
+            strong.title = (row.field || '').toString();
+            tdField.appendChild(strong);
+            const fieldHint = document.createElement('span');
+            fieldHint.className = 'field-count-note';
+            fieldHint.setAttribute('data-field-status-hint', 'true');
+            fieldHint.textContent = `${initialState.statusIcon} ${initialState.statusText}`;
+            tdField.appendChild(fieldHint);
+
+            const tdApi = document.createElement('td');
+            tdApi.appendChild(createValueBlock(row.apiValue, row.pdfValue));
+
+            const tdPdf = document.createElement('td');
+            const pdfInput = document.createElement('textarea');
+            pdfInput.rows = 2;
+            pdfInput.className = 'compare-actual-input';
+            pdfInput.value = (row.pdfValue ?? '').toString();
+            pdfInput.setAttribute('data-actual-input', 'true');
+            pdfInput.setAttribute('spellcheck', 'false');
+            tdPdf.appendChild(pdfInput);
+            requestAnimationFrame(() => autosizeInput(pdfInput));
+
+            tr.appendChild(tdMatch);
+            tr.appendChild(tdField);
+            tr.appendChild(tdApi);
+            tr.appendChild(tdPdf);
+            tr.addEventListener('click', () => selectRow(tr));
+            fragment.appendChild(tr);
+            matrixRows.push(tr);
+        });
+
+        body.appendChild(fragment);
+        if (matrixFieldCount) matrixFieldCount.textContent = `${matrixRows.length} fields`;
+    };
+
+    const evaluateMatrix = () => {
+        const mismatchOnly = mismatchOnlyToggle ? mismatchOnlyToggle.checked : false;
+        const query = (matrixSearchInput && matrixSearchInput.value ? matrixSearchInput.value : '').trim().toLowerCase();
+        const statusFilter = matrixStatusFilter ? matrixStatusFilter.value : 'all';
+        let blockingIssues = 0;
+        let visibleIssues = 0;
+        const issueRows = [];
+
+        matrixRows.forEach((row) => {
+            const input = row.querySelector('[data-actual-input]');
+            const indicator = row.querySelector('.match-indicator');
+            const fieldStatusHint = row.querySelector('[data-field-status-hint]');
+            const state = getRowState(row);
+            const isMatch = state.isMatch;
+            const matchesQuery = !query || row.innerText.toLowerCase().includes(query);
+            const matchesStatus = statusFilter === 'all' ||
+                (statusFilter === 'issue' && !isMatch) ||
+                (statusFilter === 'match' && isMatch);
+            const shouldHide = !matchesQuery || !matchesStatus || (mismatchOnly && isMatch);
+
+            row.classList.toggle('mismatch-row', !isMatch);
+            row.classList.toggle('hidden-by-filter', shouldHide);
+            row.dataset.status = state.statusText;
+            row.dataset.reason = state.reason;
+
+            if (!isMatch) {
+                blockingIssues += 1;
+                issueRows.push(row);
+                if (!row.classList.contains('hidden-by-filter')) visibleIssues += 1;
+            }
+
+            if (indicator) {
+                indicator.textContent = `${state.statusIcon} ${state.statusText}`;
+                indicator.className = `match-indicator ${state.statusClass}`;
+            }
+
+            if (fieldStatusHint) {
+                fieldStatusHint.textContent = `${state.statusIcon} ${state.statusText}`;
+            }
+
+            if (input) {
+                const hasExpectedValue = normalizeValue(row.dataset.expected).length > 0;
+                const shouldLockInput = hasExpectedValue && isMatch;
+                input.readOnly = shouldLockInput;
+                input.classList.toggle('is-readonly', shouldLockInput);
+                input.classList.toggle('input-validation-error', !isMatch);
+                input.setAttribute('aria-invalid', isMatch ? 'false' : 'true');
+                autosizeInput(input);
+            }
+        });
+
+        if (visibleMismatchCount) visibleMismatchCount.textContent = String(visibleIssues);
+        if (mismatchCount) mismatchCount.textContent = String(blockingIssues);
+        updateSummary(matrixRows.length, blockingIssues);
+        setSubmitAvailability(matrixRows.length > 0 && blockingIssues === 0);
+        if (selectedRow) renderFieldDetails(selectedRow);
+        renderIssuePanel(issueRows);
+
+        return issueRows;
+    };
+
+    const validateMatrixForSave = () => {
+        const issueRows = evaluateMatrix();
+        if (matrixRows.length === 0) {
+            if (matrixValidationAlert) {
+                matrixValidationAlert.textContent = 'Upload and compare a PDF before saving.';
+                matrixValidationAlert.hidden = false;
+            }
+            return false;
+        }
+
+        if (issueRows.length > 0) {
+            const firstIssue = issueRows[0];
+            const fieldName = firstIssue.querySelector('.matrix-field-name')?.textContent || 'The first unresolved field';
+            if (matrixValidationAlert) {
+                matrixValidationAlert.textContent = `${issueRows.length} field${issueRows.length === 1 ? '' : 's'} still need review. Start with: ${fieldName}.`;
+                matrixValidationAlert.hidden = false;
+            }
+            selectRow(firstIssue);
+            firstIssue.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            firstIssue.querySelector('[data-actual-input]')?.focus({ preventScroll: true });
+            return false;
+        }
+
+        if (matrixValidationAlert) {
+            matrixValidationAlert.hidden = true;
+            matrixValidationAlert.textContent = '';
+        }
+        return true;
+    };
+
+    const wireWorkspace = () => {
+        if (mismatchOnlyToggle) mismatchOnlyToggle.onchange = () => evaluateMatrix();
+        if (matrixSearchInput) matrixSearchInput.oninput = () => evaluateMatrix();
+        if (matrixStatusFilter) {
+            matrixStatusFilter.onchange = () => {
+                if (matrixStatusFilter.value !== 'issue' && mismatchOnlyToggle) {
+                    mismatchOnlyToggle.checked = false;
+                }
+                evaluateMatrix();
+            };
+        }
+
+        matrixRows.forEach((row) => {
+            const input = row.querySelector('[data-actual-input]');
+            if (input) {
+                input.oninput = () => {
+                    autosizeInput(input);
+                    evaluateMatrix();
+                    if (selectedRow === row) renderFieldDetails(row);
+                };
+            }
+        });
+
+        if (prevMismatchBtn) {
+            prevMismatchBtn.onclick = () => {
+                const issueRows = evaluateMatrix().filter((x) => !x.classList.contains('hidden-by-filter'));
+                if (issueRows.length === 0) return;
+                const currentIndex = issueRows.indexOf(selectedRow);
+                const target = issueRows[currentIndex > 0 ? currentIndex - 1 : issueRows.length - 1];
+                selectRow(target, true);
+                target.classList.remove('mismatch-focus');
+                requestAnimationFrame(() => target.classList.add('mismatch-focus'));
+            };
+        }
+
+        if (nextMismatchBtn) {
+            nextMismatchBtn.onclick = () => {
+                const issueRows = evaluateMatrix().filter((x) => !x.classList.contains('hidden-by-filter'));
+                if (issueRows.length === 0) return;
+                const currentIndex = issueRows.indexOf(selectedRow);
+                const target = issueRows[currentIndex >= 0 && currentIndex < issueRows.length - 1 ? currentIndex + 1 : 0];
+                if (!target) return;
+                selectRow(target, true);
+                target.classList.remove('mismatch-focus');
+                requestAnimationFrame(() => target.classList.add('mismatch-focus'));
+            };
+        }
+
+        evaluateMatrix();
+        const firstIssue = matrixRows.find((row) => !getRowState(row).isMatch);
+        selectRow(firstIssue || matrixRows[0] || null);
+    };
+
+    if (openPdfModalBtn) {
+        openPdfModalBtn.addEventListener('click', () => {
+            if (pdfPreviewModalFrame) {
+                pdfPreviewModalFrame.src = pdfFrame.getAttribute('src') || '';
+            }
+            openModal(pdfPreviewModal);
+        });
+    }
+
+    const setWorkspaceView = (view) => {
+        if (!comparisonLayout) return;
+        comparisonLayout.classList.remove('side-by-side', 'pdf-focus', 'matrix-focus', 'three-column');
+        comparisonLayout.classList.add(view);
+
+        if (view === 'three-column') {
+            comparisonLayout.style.setProperty('--pdf-panel-size', '45');
+            comparisonLayout.style.setProperty('--matrix-panel-size', '35');
+            comparisonLayout.style.setProperty('--detail-panel-size', '20');
+        } else if (view === 'pdf-focus') {
+            comparisonLayout.style.setProperty('--pdf-panel-size', '78');
+            comparisonLayout.style.setProperty('--matrix-panel-size', '22');
+        } else if (view === 'matrix-focus') {
+            comparisonLayout.style.setProperty('--pdf-panel-size', '22');
+            comparisonLayout.style.setProperty('--matrix-panel-size', '78');
+        } else {
+            comparisonLayout.style.setProperty('--pdf-panel-size', '60');
+            comparisonLayout.style.setProperty('--matrix-panel-size', '40');
+        }
+
+        workspaceViewButtons.forEach((button) => {
+            const isActive = button.dataset.workspaceView === view;
+            button.classList.toggle('is-active', isActive);
+            button.classList.toggle('btn-secondary', isActive);
+            button.classList.toggle('btn-ghost', !isActive);
+        });
+    };
+
+    workspaceViewButtons.forEach((button) => {
+        button.addEventListener('click', () => setWorkspaceView(button.dataset.workspaceView || 'side-by-side'));
+    });
+
+    document.addEventListener('keydown', (event) => {
+        const target = event.target;
+        const isEditing = target instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+            event.preventDefault();
+            if (indexSubmitBtn && !indexSubmitBtn.hidden && !indexSubmitBtn.disabled) indexSubmitBtn.click();
+            return;
+        }
+        if (isEditing) return;
+        if (event.key.toLowerCase() === 'n') {
+            event.preventDefault();
+            if (nextMismatchBtn) nextMismatchBtn.click();
+        }
+        if (event.key.toLowerCase() === 'p') {
+            event.preventDefault();
+            if (prevMismatchBtn) prevMismatchBtn.click();
+        }
+    });
+
+    const numberCssVar = (name, fallback) => {
+        if (!comparisonLayout) return fallback;
+        const raw = window.getComputedStyle(comparisonLayout).getPropertyValue(name);
+        const parsed = Number.parseFloat(raw);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    };
+
+    const beginResize = (event, mode) => {
+        if (!comparisonLayout) return;
+        event.preventDefault();
+        const handle = event.currentTarget;
+        handle.classList.add('is-dragging');
+        const pointerId = event.pointerId;
+        handle.setPointerCapture(pointerId);
+
+        const onMove = (moveEvent) => {
+            const rect = comparisonLayout.getBoundingClientRect();
+            const x = Math.min(Math.max(moveEvent.clientX - rect.left, 0), rect.width);
+            const percent = (x / rect.width) * 100;
+            const isThreeColumn = comparisonLayout.classList.contains('three-column');
+
+            if (mode === 'primary') {
+                const detail = isThreeColumn ? numberCssVar('--detail-panel-size', 20) : 0;
+                const minPdf = isThreeColumn ? 25 : 24;
+                const maxPdf = isThreeColumn ? 58 : 72;
+                const pdf = Math.min(Math.max(percent, minPdf), maxPdf);
+                comparisonLayout.style.setProperty('--pdf-panel-size', pdf.toFixed(2));
+                comparisonLayout.style.setProperty('--matrix-panel-size', (100 - pdf - detail).toFixed(2));
+            } else if (isThreeColumn) {
+                const pdf = numberCssVar('--pdf-panel-size', 45);
+                const remaining = 100 - pdf;
+                const matrix = Math.min(Math.max(percent - pdf, 24), remaining - 16);
+                comparisonLayout.style.setProperty('--matrix-panel-size', matrix.toFixed(2));
+                comparisonLayout.style.setProperty('--detail-panel-size', (remaining - matrix).toFixed(2));
+            }
+        };
+
+        const onUp = () => {
+            handle.classList.remove('is-dragging');
+            handle.releasePointerCapture(pointerId);
+            handle.removeEventListener('pointermove', onMove);
+            handle.removeEventListener('pointerup', onUp);
+            handle.removeEventListener('pointercancel', onUp);
+        };
+
+        handle.addEventListener('pointermove', onMove);
+        handle.addEventListener('pointerup', onUp);
+        handle.addEventListener('pointercancel', onUp);
+    };
+
+    if (primaryResizer) primaryResizer.addEventListener('pointerdown', (event) => beginResize(event, 'primary'));
+    if (detailsResizer) detailsResizer.addEventListener('pointerdown', (event) => beginResize(event, 'details'));
+
+    if (openMatrixModalBtn) {
+        openMatrixModalBtn.addEventListener('click', () => {
+            cloneMatrixForModal();
+            openModal(matrixPreviewModal);
+        });
+    }
+
+    document.querySelectorAll('[data-close-modal]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const targetId = button.getAttribute('data-close-modal');
+            if (!targetId) return;
+            const modal = document.getElementById(targetId);
+            closeModal(modal);
+        });
+    });
+
+    [pdfPreviewModal, matrixPreviewModal, savedSubmissionPreviewModal].forEach((modal) => {
+        if (!modal) return;
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) closeModal(modal);
+        });
+    });
+
+    let submittedPdfMode = 'active';
+    let submittedCurrentPage = 1;
+
+    const visibleActiveSubmissionChecks = () => pdfSubmissionChecks.filter((checkbox) => {
+        const row = checkbox.closest('[data-pdf-submission-row]');
+        return row && row.dataset.active === 'true' && !row.classList.contains('submitted-row-hidden');
+    });
+
+    const syncSelectAllPdfSubmissions = () => {
+        const visibleChecks = visibleActiveSubmissionChecks();
+        const checkedCount = visibleChecks.filter((checkbox) => checkbox.checked).length;
+        if (selectAllPdfSubmissions) {
+            selectAllPdfSubmissions.disabled = visibleChecks.length === 0;
+            selectAllPdfSubmissions.checked = visibleChecks.length > 0 && checkedCount === visibleChecks.length;
+            selectAllPdfSubmissions.indeterminate = checkedCount > 0 && checkedCount < visibleChecks.length;
+        }
+        if (selectedPdfCount) selectedPdfCount.textContent = `${checkedCount} selected`;
+        if (downloadSelectedPdfExcelBtn) downloadSelectedPdfExcelBtn.disabled = checkedCount === 0;
+        if (selectedPdfDownloadError && checkedCount > 0) selectedPdfDownloadError.hidden = true;
+    };
+
+    const normalizeToken = (value) => (value ?? '').toString().replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+    const applySubmittedPdfFilters = (resetPage = false) => {
+        if (resetPage) submittedCurrentPage = 1;
+        const query = (jobsQuickFilter && jobsQuickFilter.value ? jobsQuickFilter.value : '').trim().toLowerCase();
+        const validation = submittedStatusFilter ? submittedStatusFilter.value : 'all';
+        const from = submittedDateFrom && submittedDateFrom.value ? submittedDateFrom.value : '';
+        const to = submittedDateTo && submittedDateTo.value ? submittedDateTo.value : '';
+        const pageSize = submittedPageSize ? Number.parseInt(submittedPageSize.value, 10) || 25 : 25;
+        const matchedRows = [];
+
+        pdfSubmissionRows.forEach((row) => {
+            const checkbox = row.querySelector('.pdf-submission-check');
+            const matchesMode = submittedPdfMode === 'history' ? row.dataset.active === 'false' : row.dataset.active === 'true';
+            const matchesQuery = !query || row.innerText.toLowerCase().includes(query);
+            const matchesValidation = validation === 'all' || row.dataset.validation === validation;
+            const rowDate = row.dataset.submittedDate || '';
+            const matchesFrom = !from || rowDate >= from;
+            const matchesTo = !to || rowDate <= to;
+            const matchesFilters = matchesMode && matchesQuery && matchesValidation && matchesFrom && matchesTo;
+            if (matchesFilters) matchedRows.push(row);
+            row.classList.add('submitted-row-hidden');
+            if (checkbox) checkbox.checked = false;
+        });
+
+        const totalPages = Math.max(1, Math.ceil(matchedRows.length / pageSize));
+        submittedCurrentPage = Math.min(Math.max(submittedCurrentPage, 1), totalPages);
+        const start = (submittedCurrentPage - 1) * pageSize;
+        const pageRows = matchedRows.slice(start, start + pageSize);
+        pageRows.forEach((row) => {
+            row.classList.remove('submitted-row-hidden');
+        });
+
+        if (jobsVisibleCount) jobsVisibleCount.textContent = `${matchedRows.length}/${pdfSubmissionRows.length}`;
+        if (submittedPageInfo) submittedPageInfo.textContent = `Page ${submittedCurrentPage} of ${totalPages}`;
+        if (submittedPrevPageBtn) submittedPrevPageBtn.disabled = submittedCurrentPage <= 1;
+        if (submittedNextPageBtn) submittedNextPageBtn.disabled = submittedCurrentPage >= totalPages;
+        if (submittedNoResults) submittedNoResults.hidden = matchedRows.length > 0;
+        syncSelectAllPdfSubmissions();
+    };
+
+    const showSavedSubmissionPreview = (button) => {
+        const row = button.closest('[data-pdf-submission-row]');
+        if (!row) return;
+        const cells = row.querySelectorAll('td');
+        const payload = row.querySelector('.saved-row-json');
+        const jobId = cells[1] ? cells[1].innerText.trim() : 'Saved PDF Data';
+        const bl = cells[2] ? cells[2].innerText.trim() : '-';
+        const sourceFile = cells[3] ? cells[3].innerText.trim() : '-';
+        const submitted = cells[4] ? cells[4].innerText.trim().replace(/\s+/g, ' ') : '-';
+        const status = cells[5] ? cells[5].innerText.trim().replace(/\s+/g, ' ') : '';
+        const rawJson = payload ? payload.textContent || '' : '';
+        const savedRows = parseSavedRows(rawJson);
+
+        if (savedPreviewTitle) savedPreviewTitle.textContent = jobId;
+        if (savedPreviewMeta) {
+            savedPreviewMeta.textContent = `BL ${bl} · ${status}`;
+        }
+        if (savedPreviewJson) savedPreviewJson.textContent = formatJson(rawJson);
+        renderSavedSummary({ jobId, bl, sourceFile, submitted, status, rowCount: savedRows.length });
+        renderSavedFieldRows(savedRows);
+        setSavedPreviewTab('summary');
+        openModal(savedSubmissionPreviewModal);
+    };
+
+    const parseSavedRows = (rawJson) => {
+        try {
+            const parsed = JSON.parse(rawJson || '[]');
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    };
+
+    const formatJson = (rawJson) => {
+        try {
+            return JSON.stringify(JSON.parse(rawJson || '[]'), null, 2);
+        } catch {
+            return rawJson || '';
+        }
+    };
+
+    const renderSavedSummary = (summary) => {
+        if (!savedPreviewSummary) return;
+        const items = [
+            ['Job ID', summary.jobId],
+            ['Bill Of Lading Number', summary.bl],
+            ['Source File', summary.sourceFile],
+            ['Submitted', summary.submitted],
+            ['Status', summary.status],
+            ['Saved Fields', summary.rowCount]
+        ];
+        savedPreviewSummary.innerHTML = items.map(([label, value]) => `
+            <div class="saved-summary-item">
+                <span>${escapeHtml(label)}</span>
+                <strong>${escapeHtml(String(value || '-'))}</strong>
+            </div>
+        `).join('');
+    };
+
+    const getSavedRowState = (row) => {
+        const apiValue = row.apiValue ?? row.ApiValue ?? '';
+        const pdfValue = row.pdfValue ?? row.PdfValue ?? '';
+        if (!normalizeValue(apiValue)) {
+            return normalizeValue(pdfValue) ? { isMatch: true, text: 'Manual Value' } : { isMatch: false, text: 'Needs Review' };
+        }
+        return normalizeValue(apiValue) === normalizeValue(pdfValue)
+            ? { isMatch: true, text: 'Match' }
+            : { isMatch: false, text: 'Needs Review' };
+    };
+
+    const renderSavedFieldRows = (rows) => {
+        if (!savedPreviewFieldBody) return;
+        savedPreviewFieldBody.innerHTML = rows.map((row) => {
+            const field = row.field ?? row.Field ?? '';
+            const apiValue = row.apiValue ?? row.ApiValue ?? '';
+            const pdfValue = row.pdfValue ?? row.PdfValue ?? '';
+            const state = getSavedRowState(row);
+            return `
+                <tr data-saved-preview-field-row data-match="${state.isMatch ? 'true' : 'false'}">
+                    <td><strong>${escapeHtml(field)}</strong></td>
+                    <td>${escapeHtml(apiValue || '-')}</td>
+                    <td>${escapeHtml(pdfValue || '-')}</td>
+                    <td><span class="match-indicator ${state.isMatch ? 'ok' : 'bad'}">${escapeHtml(state.text)}</span></td>
+                </tr>
+            `;
+        }).join('');
+        applySavedPreviewFilters();
+    };
+
+    const applySavedPreviewFilters = () => {
+        const query = (savedPreviewSearch && savedPreviewSearch.value ? savedPreviewSearch.value : '').trim().toLowerCase();
+        const issuesOnly = savedPreviewIssuesOnly ? savedPreviewIssuesOnly.checked : false;
+        const rows = Array.from(document.querySelectorAll('[data-saved-preview-field-row]'));
+        let visible = 0;
+        rows.forEach((row) => {
+            const matchesQuery = !query || row.innerText.toLowerCase().includes(query);
+            const matchesIssue = !issuesOnly || row.dataset.match === 'false';
+            const shouldShow = matchesQuery && matchesIssue;
+            row.hidden = !shouldShow;
+            if (shouldShow) visible += 1;
+        });
+        if (savedPreviewNoValues) savedPreviewNoValues.hidden = visible > 0;
+    };
+
+    const setSavedPreviewTab = (tabName) => {
+        savedPreviewTabs.forEach((tab) => {
+            const active = tab.dataset.savedPreviewTab === tabName;
+            tab.classList.toggle('is-active', active);
+            tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        savedPreviewPanes.forEach((pane) => {
+            const active = pane.dataset.savedPreviewPane === tabName;
+            pane.classList.toggle('is-active', active);
+            pane.hidden = !active;
+        });
+    };
+
+    const escapeHtml = (value) => (value ?? '').toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+    const findActiveBillOfLadingRow = (billOfLadingNumber) => {
+        const normalized = normalizeToken(billOfLadingNumber);
+        if (!normalized) return null;
+        return pdfSubmissionRows.find((row) => {
+            if (row.dataset.active !== 'true') return false;
+            const cells = row.querySelectorAll('td');
+            const value = cells[2] ? cells[2].innerText : '';
+            return normalizeToken(value) === normalized;
+        }) || null;
+    };
+
+    const getCurrentBillOfLadingNumber = (rowsPayload) => {
+        const keys = ['billofladingnumber', 'blno', 'mblno'];
+        const row = rowsPayload.find((item) => keys.includes((item.field || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase()));
+        return row ? (row.pdfValue || row.apiValue || '').trim() : '';
+    };
+
+    if (selectAllPdfSubmissions) {
+        selectAllPdfSubmissions.addEventListener('change', () => {
+            visibleActiveSubmissionChecks().forEach((checkbox) => {
+                checkbox.checked = selectAllPdfSubmissions.checked;
+            });
+            syncSelectAllPdfSubmissions();
+        });
+    }
+
+    pdfSubmissionChecks.forEach((checkbox) => {
+        checkbox.addEventListener('change', syncSelectAllPdfSubmissions);
+    });
+
+    pdfModeButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            submittedPdfMode = button.dataset.pdfMode || 'active';
+            pdfModeButtons.forEach((item) => item.classList.toggle('is-active', item === button));
+            pdfSubmissionChecks.forEach((checkbox) => { checkbox.checked = false; });
+            applySubmittedPdfFilters(true);
+        });
+    });
+
+    [jobsQuickFilter, submittedStatusFilter, submittedDateFrom, submittedDateTo].forEach((control) => {
+        if (!control) return;
+        control.addEventListener('input', () => applySubmittedPdfFilters(true));
+        control.addEventListener('change', () => applySubmittedPdfFilters(true));
+    });
+
+    if (submittedPageSize) {
+        submittedPageSize.addEventListener('change', () => applySubmittedPdfFilters(true));
+    }
+
+    if (submittedPrevPageBtn) {
+        submittedPrevPageBtn.addEventListener('click', () => {
+            submittedCurrentPage -= 1;
+            applySubmittedPdfFilters();
+        });
+    }
+
+    if (submittedNextPageBtn) {
+        submittedNextPageBtn.addEventListener('click', () => {
+            submittedCurrentPage += 1;
+            applySubmittedPdfFilters();
+        });
+    }
+
+    if (clearSubmittedFiltersBtn) {
+        clearSubmittedFiltersBtn.addEventListener('click', () => {
+            if (jobsQuickFilter) jobsQuickFilter.value = '';
+            if (submittedStatusFilter) submittedStatusFilter.value = 'all';
+            if (submittedDateFrom) submittedDateFrom.value = '';
+            if (submittedDateTo) submittedDateTo.value = '';
+            applySubmittedPdfFilters(true);
+        });
+    }
+
+    if (clearSubmittedFiltersEmptyBtn) {
+        clearSubmittedFiltersEmptyBtn.addEventListener('click', () => {
+            if (clearSubmittedFiltersBtn) clearSubmittedFiltersBtn.click();
+        });
+    }
+
+    document.querySelectorAll('[data-preview-submission]').forEach((button) => {
+        button.addEventListener('click', () => showSavedSubmissionPreview(button));
+    });
+
+    savedPreviewTabs.forEach((tab) => {
+        tab.addEventListener('click', () => setSavedPreviewTab(tab.dataset.savedPreviewTab || 'summary'));
+    });
+
+    if (savedPreviewSearch) savedPreviewSearch.addEventListener('input', applySavedPreviewFilters);
+    if (savedPreviewIssuesOnly) savedPreviewIssuesOnly.addEventListener('change', applySavedPreviewFilters);
+
+    applySubmittedPdfFilters();
+
+    if (submittedSaveSuccess) {
+        const savedSummary = window.sessionStorage.getItem('pdfComparisonSavedSummary');
+        if (savedSummary) {
+            const params = new URLSearchParams(savedSummary);
+            const id = params.get('savedSubmissionId');
+            const bl = params.get('savedBillOfLadingNumber');
+            const message = `Saved successfully${id ? ` as PDF-JOB-${String(id).padStart(5, '0')}` : ''}${bl ? ` for BL ${bl}` : ''}.`;
+            submittedSaveSuccess.textContent = message;
+            submittedSaveSuccess.hidden = false;
+            showToast(message);
+            window.sessionStorage.removeItem('pdfComparisonSavedSummary');
+        }
+    }
+
+    if (selectedPdfDownloadForm) {
+        selectedPdfDownloadForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const hasSelection = visibleActiveSubmissionChecks().some((checkbox) => checkbox.checked);
+            if (selectedPdfDownloadError) selectedPdfDownloadError.hidden = hasSelection;
+            if (!hasSelection) {
+                return;
+            }
+
+            const formData = new FormData(selectedPdfDownloadForm);
+            const originalText = downloadSelectedPdfExcelBtn ? downloadSelectedPdfExcelBtn.textContent : '';
+            if (downloadSelectedPdfExcelBtn) {
+                downloadSelectedPdfExcelBtn.disabled = true;
+                downloadSelectedPdfExcelBtn.textContent = 'Preparing ZIP...';
+            }
+
+            try {
+                const res = await fetch(selectedPdfDownloadForm.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                if (!res.ok) {
+                    const message = await res.text();
+                    if (selectedPdfDownloadError) {
+                        selectedPdfDownloadError.textContent = message || `Unable to download selected Excel ZIP. Server returned ${res.status}.`;
+                        selectedPdfDownloadError.hidden = false;
+                    }
+                    return;
+                }
+
+                const blob = await res.blob();
+                const disposition = res.headers.get('Content-Disposition') || '';
+                const fileName = getDownloadFileName(disposition, 'comparison-files-selected.zip');
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.URL.revokeObjectURL(url);
+            } catch (err) {
+                if (selectedPdfDownloadError) {
+                    selectedPdfDownloadError.textContent = err && err.message ? err.message : 'Unexpected error while downloading Excel ZIP.';
+                    selectedPdfDownloadError.hidden = false;
+                }
+            } finally {
+                if (downloadSelectedPdfExcelBtn) {
+                    downloadSelectedPdfExcelBtn.textContent = originalText || 'Download Excel';
+                }
+                syncSelectAllPdfSubmissions();
+            }
+        });
+    }
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        closeModal(pdfPreviewModal);
+        closeModal(matrixPreviewModal);
+        closeModal(savedSubmissionPreviewModal);
+    });
+
+    if (indexSubmitBtn) {
+        indexSubmitBtn.addEventListener('click', async () => {
+            clearError();
+            if (!validateMatrixForSave()) {
+                showError('Save is allowed only when all rows have confirmed non-blank matching values.');
+                return;
+            }
+
+            const rowsPayload = matrixRows.map((row) => {
+                const fieldCell = row.querySelector('td strong');
+                const input = row.querySelector('[data-actual-input]');
+                return {
+                    field: fieldCell ? fieldCell.textContent || '' : '',
+                    apiValue: row.dataset.expected || '',
+                    pdfValue: input && input.value ? input.value : ''
+                };
+            });
+
+            const currentBillOfLadingNumber = getCurrentBillOfLadingNumber(rowsPayload);
+            if (currentBillOfLadingNumber) {
+                try {
+                    const duplicateRes = await fetch(`@Url.Action("ActiveBillOfLadingExists", "ComparisonJobs")?billOfLadingNumber=${encodeURIComponent(currentBillOfLadingNumber)}`, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    if (duplicateRes.ok) {
+                        const duplicatePayload = await duplicateRes.json();
+                        if (duplicatePayload && duplicatePayload.exists) {
+                            const existingJobId = duplicatePayload.jobId || 'an active record';
+                            const shouldContinue = window.confirm(`Bill Of Lading Number ${currentBillOfLadingNumber} already exists in ${existingJobId}. Saving will mark that record inactive and create a new active record. Continue?`);
+                            if (!shouldContinue) return;
+                        }
+                    }
+                } catch {
+                    // Server validation still handles duplicate replacement if the pre-check is unavailable.
+                }
+            }
+
+            const fd = new FormData();
+            fd.append('rowsJson', JSON.stringify(rowsPayload));
+            fd.append('sourceFileName', currentSourceFileName || 'uploaded.pdf');
+
+            const token = form.querySelector('input[name="__RequestVerificationToken"]');
+            if (token) fd.append('__RequestVerificationToken', token.value);
+
+            indexSubmitBtn.disabled = true;
+            const originalText = indexSubmitBtn.textContent;
+            indexSubmitBtn.textContent = 'Saving...';
+
+            try {
+                const res = await fetch('@Url.Action("SubmitIndexComparison", "ComparisonJobs")', {
+                    method: 'POST',
+                    body: fd,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                if (!res.ok) {
+                    let message = 'Unable to submit comparison.';
+                    try {
+                        const payload = await res.json();
+                        if (payload && payload.error) message = payload.error;
+                    } catch {
+                        // Keep fallback message for non-JSON responses.
+                    }
+                    showError(message);
+                    return;
+                }
+
+                let savedSubmissionId = '';
+                let redirectUrl = '@Url.Action("SubmittedPdfData", "ComparisonJobs")';
+                try {
+                    const payload = await res.json();
+                    savedSubmissionId = payload && payload.submissionId ? payload.submissionId : '';
+                    redirectUrl = payload && payload.redirectUrl ? payload.redirectUrl : redirectUrl;
+                } catch {
+                    // Redirect still works if the response is not JSON.
+                }
+                const successParams = new URLSearchParams();
+                if (savedSubmissionId) successParams.set('savedSubmissionId', savedSubmissionId);
+                if (currentBillOfLadingNumber) successParams.set('savedBillOfLadingNumber', currentBillOfLadingNumber);
+                setStatus('Saved successfully', 'success');
+                setComparisonStep('save');
+                if (successParams.toString()) {
+                    window.sessionStorage.setItem('pdfComparisonSavedSummary', successParams.toString());
+                }
+                window.location.href = redirectUrl;
+            } catch (err) {
+                showError(err && err.message ? err.message : 'Unexpected error while saving comparison.');
+            } finally {
+                indexSubmitBtn.disabled = false;
+                indexSubmitBtn.textContent = originalText;
+            }
+        });
+    }
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        clearError();
+        resultWrap.hidden = true;
+        matchBadge.hidden = true;
+        mismatchBadge.hidden = true;
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            showError('Please choose a PDF file.');
+            return;
+        }
+
+        const fd = new FormData();
+        fd.append('pdfFile', fileInput.files[0]);
+
+        const token = form.querySelector('input[name="__RequestVerificationToken"]');
+        if (token) fd.append('__RequestVerificationToken', token.value);
+
+        submitBtn.disabled = true;
+        setStatus('Uploading...', 'warning');
+        setComparisonStep('compare');
+
+        try {
+            const res = await fetch('@Url.Action("UploadAndCompare", "ComparisonJobs")', {
+                method: 'POST',
+                body: fd,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            const payload = await res.json();
+            if (!res.ok) {
+                showError(payload.error || 'Upload/API call failed.');
+                setStatus('Failed', 'danger');
+                return;
+            }
+
+            const rows = Array.isArray(payload.comparisons) ? payload.comparisons : [];
+            renderRows(rows);
+            currentSourceFileName = payload.fileName || (fileInput.files && fileInput.files[0] ? fileInput.files[0].name : '');
+
+            setPdfPreviewFromFile(fileInput.files[0]);
+
+            matchBadge.textContent = `Matches: ${payload.matches ?? 0}`;
+            mismatchBadge.textContent = `Issues: ${payload.mismatches ?? 0}`;
+            matchBadge.hidden = false;
+            mismatchBadge.hidden = false;
+            uploadPanel.hidden = true;
+            resultWrap.hidden = false;
+            wireWorkspace();
+            setStatus('Completed', 'success');
+            setComparisonStep((payload.mismatches ?? 0) > 0 ? 'resolve' : 'save');
+        } catch (err) {
+            showError(err && err.message ? err.message : 'Unexpected error while processing PDF.');
+            setStatus('Failed', 'danger');
+            setComparisonStep('upload');
+        } finally {
+            submitBtn.disabled = false;
+        }
+    });
+
+    if (uploadAnotherBtn) {
+        uploadAnotherBtn.addEventListener('click', () => {
+            fileInput.value = '';
+            setPdfPreviewFromFile(null);
+            body.innerHTML = '';
+            matrixRows = [];
+            currentSourceFileName = '';
+            selectedRow = null;
+            clearError();
+            matchBadge.hidden = true;
+            mismatchBadge.hidden = true;
+            if (matrixFieldCount) matrixFieldCount.textContent = '0 fields';
+            if (visibleMismatchCount) visibleMismatchCount.textContent = '0';
+            if (mismatchCount) mismatchCount.textContent = '0';
+            updateSummary(0, 0);
+            renderFieldDetails(null);
+            if (matrixSearchInput) matrixSearchInput.value = '';
+            if (matrixStatusFilter) matrixStatusFilter.value = 'all';
+            if (mismatchOnlyToggle) mismatchOnlyToggle.checked = false;
+            setWorkspaceView('side-by-side');
+            if (matrixPreviewTableWrap) matrixPreviewTableWrap.innerHTML = '';
+            if (pdfPreviewModalFrame) pdfPreviewModalFrame.removeAttribute('src');
+            closeModal(pdfPreviewModal);
+            closeModal(matrixPreviewModal);
+            closeModal(savedSubmissionPreviewModal);
+            setSubmitAvailability(false);
+            setStatus('Waiting for upload', 'neutral');
+            setComparisonStep('upload');
+            resultWrap.hidden = true;
+            uploadPanel.hidden = false;
+        });
+    }
+
+    setSubmitAvailability(false);
+    setWorkspaceView('side-by-side');
+    updateSummary(0, 0);
+})();
+</script>

@@ -147,21 +147,48 @@ function initComparisonScreen() {
 
 function initPasswordToggle() {
   document.querySelectorAll('[data-password-toggle]').forEach((button) => {
+    button.setAttribute('aria-pressed', 'false');
     button.addEventListener('click', () => {
       const input = document.getElementById(button.dataset.passwordToggle || '');
       if (!input) return;
       const isPassword = input.type === 'password';
       input.type = isPassword ? 'text' : 'password';
       button.textContent = isPassword ? 'Hide' : 'Show';
+      button.setAttribute('aria-pressed', isPassword ? 'true' : 'false');
+      button.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
     });
   });
 }
 
 function initSidebarToggle() {
   const toggle = document.getElementById('sidebarToggle');
+  const scrim = document.getElementById('sidebarScrim');
   if (!toggle) return;
+  const mobileNav = window.matchMedia('(max-width: 1024px)');
+  const setOpen = (open) => {
+    if (mobileNav.matches) {
+      document.body.classList.toggle('sidebar-open', open);
+    } else {
+      document.body.classList.toggle('sidebar-collapsed', open);
+    }
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (scrim) scrim.hidden = !(open && mobileNav.matches);
+  };
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.setAttribute('aria-controls', 'sidebar');
   toggle.addEventListener('click', () => {
-    document.body.classList.toggle('sidebar-collapsed');
+    const isOpen = mobileNav.matches
+      ? document.body.classList.contains('sidebar-open')
+      : document.body.classList.contains('sidebar-collapsed');
+    setOpen(!isOpen);
+  });
+  if (scrim) scrim.addEventListener('click', () => setOpen(false));
+  mobileNav.addEventListener('change', () => {
+    document.body.classList.remove('sidebar-open');
+    if (scrim) scrim.hidden = true;
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') setOpen(false);
   });
 }
 
@@ -179,6 +206,11 @@ function initSidebarSearch() {
 }
 
 function initDropdowns() {
+  const closeDropdowns = () => {
+    document.querySelectorAll('[data-dropdown-target]').forEach((trigger) => trigger.setAttribute('aria-expanded', 'false'));
+    document.querySelectorAll('.dropdown-card').forEach((el) => el.setAttribute('hidden', 'hidden'));
+  };
+
   document.querySelectorAll('[data-dropdown-target]').forEach((trigger) => {
     trigger.addEventListener('click', (event) => {
       event.preventDefault();
@@ -188,14 +220,20 @@ function initDropdowns() {
       if (!target) return;
 
       const isHidden = target.hasAttribute('hidden');
-      document.querySelectorAll('.dropdown-card').forEach((el) => el.setAttribute('hidden', 'hidden'));
-      if (isHidden) target.removeAttribute('hidden');
+      closeDropdowns();
+      if (isHidden) {
+        target.removeAttribute('hidden');
+        trigger.setAttribute('aria-expanded', 'true');
+      }
     });
   });
 
   document.addEventListener('click', (event) => {
     if (event.target.closest('[data-dropdown-target]') || event.target.closest('.dropdown-card')) return;
-    document.querySelectorAll('.dropdown-card').forEach((el) => el.setAttribute('hidden', 'hidden'));
+    closeDropdowns();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeDropdowns();
   });
 }
 
@@ -392,7 +430,8 @@ function initDialogAccessibility() {
 
 function initFormBusyState() {
   document.querySelectorAll('form').forEach((form) => {
-    form.addEventListener('submit', () => {
+    form.addEventListener('submit', (event) => {
+      if (event.defaultPrevented) return;
       const submit = form.querySelector('button[type="submit"]');
       if (!submit || submit.disabled) return;
       submit.classList.add('is-loading');
@@ -440,6 +479,18 @@ function initTableQuickSearch() {
     const body = table.querySelector('tbody');
     if (!body) return;
     const rows = Array.from(body.querySelectorAll('tr'));
+    let emptyRow = body.querySelector('[data-table-empty-row]');
+    if (!emptyRow) {
+      emptyRow = document.createElement('tr');
+      emptyRow.className = 'table-empty-row';
+      emptyRow.setAttribute('data-table-empty-row', 'true');
+      emptyRow.hidden = true;
+      const cell = document.createElement('td');
+      cell.colSpan = Math.max(1, table.querySelectorAll('thead th').length || rows[0]?.children.length || 1);
+      cell.textContent = 'No rows match the current filter.';
+      emptyRow.appendChild(cell);
+      body.appendChild(emptyRow);
+    }
     const countElId = input.getAttribute('data-table-count-target');
     const countEl = countElId ? document.getElementById(countElId) : null;
 
@@ -457,6 +508,7 @@ function initTableQuickSearch() {
         row.style.display = match ? '' : 'none';
         if (match) visible += 1;
       });
+      emptyRow.hidden = visible !== 0;
       updateCount(visible);
     };
 
@@ -486,6 +538,178 @@ function initMobileAnalyticsToggle() {
     const collapsed = panel.classList.toggle('collapsed');
     toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     toggle.textContent = collapsed ? 'Show More Analytics' : 'Hide Extra Analytics';
+  });
+}
+
+function initAccessibleTabs() {
+  document.querySelectorAll('[role="tablist"]').forEach((tablist) => {
+    const tabs = Array.from(tablist.querySelectorAll('[role="tab"]'));
+    if (tabs.length === 0) return;
+
+    tabs.forEach((tab, index) => {
+      tab.setAttribute('tabindex', tab.getAttribute('aria-selected') === 'true' ? '0' : '-1');
+      tab.addEventListener('keydown', (event) => {
+        const direction = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1
+          : event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1
+            : 0;
+        if (direction === 0) return;
+        event.preventDefault();
+        const next = tabs[(index + direction + tabs.length) % tabs.length];
+        next.focus();
+        next.click();
+      });
+      tab.addEventListener('click', () => {
+        tabs.forEach((item) => item.setAttribute('tabindex', item === tab ? '0' : '-1'));
+      });
+    });
+  });
+}
+
+function initIdleTimeoutDrafts() {
+  const warningAfterMs = 25 * 60 * 1000;
+  const logoutAfterMs = 30 * 60 * 1000;
+  const storageKey = `pdf-admin-draft:${location.pathname}`;
+  const modal = document.getElementById('idleTimeoutModal');
+  const stayBtn = document.getElementById('idleStaySignedInBtn');
+  const logoutBtn = document.getElementById('idleLogoutNowBtn');
+  const idleLogoutForm = document.getElementById('idleLogoutForm');
+  let warningTimer = 0;
+  let logoutTimer = 0;
+
+  const saveDraft = () => {
+    const fields = Array.from(document.querySelectorAll('input, textarea, select'))
+      .filter((field) => field.name || field.id)
+      .filter((field) => !['password', 'file', 'hidden'].includes((field.type || '').toLowerCase()));
+    const draft = {};
+    fields.forEach((field) => {
+      const key = field.name || field.id;
+      draft[key] = field.type === 'checkbox' ? field.checked : field.value;
+    });
+    if (Object.keys(draft).length > 0) sessionStorage.setItem(storageKey, JSON.stringify(draft));
+  };
+
+  const restoreDraft = () => {
+    const raw = sessionStorage.getItem(storageKey);
+    if (!raw) return;
+    try {
+      const draft = JSON.parse(raw);
+      Object.entries(draft).forEach(([key, value]) => {
+        const field = document.querySelector(`[name="${CSS.escape(key)}"], #${CSS.escape(key)}`);
+        if (!field || field.value) return;
+        if (field.type === 'checkbox') field.checked = Boolean(value);
+        else field.value = value;
+      });
+    } catch {
+      sessionStorage.removeItem(storageKey);
+    }
+  };
+
+  const showIdleWarning = () => {
+    saveDraft();
+    if (!modal) return;
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+  };
+
+  const hideIdleWarning = () => {
+    if (!modal) return;
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
+  };
+
+  const resetIdleTimers = () => {
+    window.clearTimeout(warningTimer);
+    window.clearTimeout(logoutTimer);
+    hideIdleWarning();
+    warningTimer = window.setTimeout(showIdleWarning, warningAfterMs);
+    logoutTimer = window.setTimeout(() => {
+      saveDraft();
+      if (idleLogoutForm) idleLogoutForm.submit();
+    }, logoutAfterMs);
+  };
+
+  restoreDraft();
+  document.addEventListener('input', saveDraft);
+  document.addEventListener('submit', (event) => {
+    if (event.target instanceof HTMLFormElement && event.target.matches('[data-clear-draft-on-submit]')) {
+      sessionStorage.removeItem(storageKey);
+    }
+  }, true);
+  ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach((eventName) => {
+    document.addEventListener(eventName, resetIdleTimers, { passive: true });
+  });
+  if (stayBtn) stayBtn.addEventListener('click', resetIdleTimers);
+  if (logoutBtn) logoutBtn.addEventListener('click', () => {
+    saveDraft();
+    if (idleLogoutForm) idleLogoutForm.submit();
+  });
+  resetIdleTimers();
+}
+
+function initFormValidationUx() {
+  const getMessageNode = (form, field) => {
+    const name = field.getAttribute('name');
+    if (!name) return null;
+    return form.querySelector(`[data-valmsg-for="${CSS.escape(name)}"]`);
+  };
+
+  const getCompareTarget = (form, field) => {
+    const other = field.getAttribute('data-val-equalto-other');
+    if (!other) return null;
+    const name = other.replace(/^\*\./, '');
+    return form.querySelector(`[name="${CSS.escape(name)}"]`);
+  };
+
+  const validateField = (form, field, showMessage = true) => {
+    if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement)) return true;
+    if (field.disabled || ['hidden', 'button', 'submit', 'reset'].includes((field.type || '').toLowerCase())) return true;
+
+    const value = field.value.trim();
+    let message = '';
+    const requiredMessage = field.getAttribute('data-val-required') || field.getAttribute('data-val-regex');
+    const maxLength = Number(field.getAttribute('data-val-length-max') || 0);
+    const minLength = Number(field.getAttribute('data-val-length-min') || 0);
+    const compareTarget = getCompareTarget(form, field);
+
+    if (requiredMessage && !value) message = requiredMessage;
+    else if (field.type === 'email' && value && !field.checkValidity()) message = field.getAttribute('data-val-email') || 'Enter a valid email address.';
+    else if (minLength && value.length < minLength) message = field.getAttribute('data-val-length') || `Enter at least ${minLength} characters.`;
+    else if (maxLength && value.length > maxLength) message = field.getAttribute('data-val-length') || `Enter no more than ${maxLength} characters.`;
+    else if (compareTarget && value !== compareTarget.value) message = field.getAttribute('data-val-equalto') || 'Values do not match.';
+    else if (!field.checkValidity()) message = field.validationMessage;
+
+    field.classList.toggle('input-validation-error', Boolean(message));
+    field.setAttribute('aria-invalid', message ? 'true' : 'false');
+    const group = field.closest('.iam-field, .role-field-group, .form-group, .boxed-input');
+    if (group) group.classList.toggle('is-invalid', Boolean(message));
+    const messageNode = getMessageNode(form, field);
+    if (messageNode && showMessage) messageNode.textContent = message;
+    return !message;
+  };
+
+  document.querySelectorAll('form').forEach((form) => {
+    const fields = Array.from(form.querySelectorAll('input, textarea, select'));
+    fields.forEach((field) => {
+      field.addEventListener('blur', () => {
+        field.closest('.iam-field, .role-field-group, .form-group, .boxed-input')?.classList.add('is-touched');
+        validateField(form, field);
+      });
+      field.addEventListener('input', () => {
+        if (field.getAttribute('aria-invalid') === 'true') validateField(form, field);
+      });
+      field.addEventListener('change', () => validateField(form, field, field.getAttribute('aria-invalid') === 'true'));
+    });
+
+    form.addEventListener('submit', (event) => {
+      form.classList.add('was-submitted');
+      form.querySelectorAll('.iam-field, .role-field-group, .form-group, .boxed-input').forEach((group) => group.classList.add('is-touched'));
+      const valid = fields.every((field) => validateField(form, field));
+      if (!valid) {
+        event.preventDefault();
+        const firstInvalid = form.querySelector('[aria-invalid="true"]');
+        if (firstInvalid instanceof HTMLElement) firstInvalid.focus({ preventScroll: false });
+      }
+    }, true);
   });
 }
 
@@ -581,6 +805,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initRowMenuDismiss();
   initRowMenuPlacement();
   initTableQuickSearch();
+  initAccessibleTabs();
   initDashboardVisuals();
   initMobileAnalyticsToggle();
+  initIdleTimeoutDrafts();
+  initFormValidationUx();
 });

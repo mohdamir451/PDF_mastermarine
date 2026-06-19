@@ -9,7 +9,23 @@
     @for (var i = 0; i < list.Count; i++)
     {
         var isLast = i == list.Count - 1;
-        <span class="crumb @(isLast ? "current" : string.Empty)">@list[i]</span>
+        var label = list[i];
+        if (isLast)
+        {
+            <span class="crumb current" aria-current="page">@label</span>
+        }
+        else if (i == 0)
+        {
+            <a class="crumb" href="@Url.Action("Index", "Dashboard")">@label</a>
+        }
+        else if (i == 1)
+        {
+            <a class="crumb" href="@Url.Action("Index", controller)">@label</a>
+        }
+        else
+        {
+            <span class="crumb">@label</span>
+        }
         if (!isLast)
         {
             <span class="crumb-sep">/</span>

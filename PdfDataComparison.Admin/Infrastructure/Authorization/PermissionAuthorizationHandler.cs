@@ -14,6 +14,12 @@ public class PermissionAuthorizationHandler(IPermissionService permissionService
             return;
         }
 
+        if (context.User.IsInRole("SuperAdmin"))
+        {
+            context.Succeed(requirement);
+            return;
+        }
+
         var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrWhiteSpace(userId))
         {

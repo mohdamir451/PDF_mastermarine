@@ -4,30 +4,45 @@
     ViewData["Subtitle"] = "Manage enterprise users, departments, and account status.";
     var searchQuery = Context.Request.Query["search"].ToString();
     var hasServerFilter = !string.IsNullOrWhiteSpace(searchQuery);
+    var activeUsers = Model.Items.Count(x => x.IsActive);
+    var inactiveUsers = Model.Items.Count(x => !x.IsActive);
+    var usersWithRoles = Model.Items.Count(x => x.Roles.Any());
+    var neverLoggedIn = Model.Items.Count(x => x.LastLoginAt == null);
 }
 
-<section class="page-hero">
-    <div>
-        <h2>User Management</h2>
-        <p>Control account access, role coverage, and user lifecycle visibility.</p>
-    </div>
-    <a asp-action="Create" class="btn btn-primary">Create User</a>
-</section>
+<section class="admin-page-shell">
+    <header class="admin-page-hero">
+        <div class="admin-title-block">
+            <h2>User Management</h2>
+            <p>Control account access, role coverage, and user lifecycle visibility.</p>
+        </div>
+        <div class="admin-header-actions">
+            <span class="admin-record-pill">@Model.TotalCount total users</span>
+            <a asp-action="Create" class="btn btn-primary">Create User</a>
+        </div>
+    </header>
 
-<section class="card">
+    <section class="admin-panel">
     @if (TempData["SuccessMessage"] is string successMessage)
     {
         <div class="alert success">@successMessage</div>
     }
 
-    <form method="get" class="action-bar">
-        <div class="filter-bar">
+    <div class="admin-summary-grid" aria-label="User management summary">
+        <div class="admin-summary-card metric-active"><strong>@activeUsers</strong><span>Active Users</span></div>
+        <div class="admin-summary-card metric-risk"><strong>@inactiveUsers</strong><span>Inactive Users</span></div>
+        <div class="admin-summary-card metric-complete"><strong>@usersWithRoles</strong><span>With Roles</span></div>
+        <div class="admin-summary-card metric-neutral"><strong>@neverLoggedIn</strong><span>Never Logged In</span></div>
+    </div>
+
+    <form method="get" class="admin-toolbar">
+        <div class="admin-filter-group">
             <label for="usersSearch" class="sr-only">Search users</label>
             <input id="usersSearch" type="search" name="search" value="@searchQuery" placeholder="Search by name, email, or department" aria-label="Search users" />
             <button type="submit" class="btn btn-secondary">Search</button>
             <a asp-action="Index" class="btn btn-ghost">Reset</a>
         </div>
-        <div class="table-tools">
+        <div class="admin-table-tools">
             @if (hasServerFilter)
             {
                 <span class="active-filter-chip">Filter: @searchQuery</span>
@@ -36,7 +51,6 @@
             <input id="usersQuickFilter" class="table-quick-filter" type="search" placeholder="Quick filter visible rows" data-table-search data-table-target="usersTable" data-table-count-target="usersVisibleCount" />
             <span class="badge neutral visible-count" id="usersVisibleCount" aria-live="polite">0/0</span>
             <button type="button" class="btn btn-ghost" data-density-target="usersTableWrap" aria-pressed="false">Compact Rows</button>
-            <span class="badge neutral">@Model.TotalCount total users</span>
         </div>
     </form>
 
@@ -48,8 +62,8 @@
     <div class="data-panel" data-data-panel hidden>
         @if (Model.Items.Any())
         {
-            <div class="table-wrap" id="usersTableWrap">
-                <table class="table table-responsive-card" id="usersTable" data-sortable>
+            <div class="table-wrap admin-table-wrap" id="usersTableWrap">
+                <table class="table table-responsive-card admin-data-table" id="usersTable" data-sortable>
                     <thead>
                     <tr>
                         <th><button type="button" class="sort-btn" data-sort-col="0">Name</button></th>
@@ -68,15 +82,15 @@
                             <td data-label="Name">
                                 <strong>@user.FullName</strong>
                             </td>
-                            <td data-label="Email">@user.Email</td>
-                            <td data-label="Department">@user.Department</td>
+                            <td data-label="Email" class="admin-truncate" title="@user.Email">@user.Email</td>
+                            <td data-label="Department" class="admin-truncate" title="@user.Department">@user.Department</td>
                             <td data-label="Status">
                                 <span class="badge @(user.IsActive ? "success" : "danger") status-chip">@(user.IsActive ? "Active" : "Inactive")</span>
                             </td>
-                            <td data-label="Roles">@string.Join(", ", user.Roles)</td>
+                            <td data-label="Roles" class="admin-truncate" title="@string.Join(", ", user.Roles)">@string.Join(", ", user.Roles)</td>
                             <td data-label="Last Login">@(user.LastLoginAt?.ToString("yyyy-MM-dd HH:mm") ?? "Never")</td>
                             <td class="actions" data-label="Actions">
-                                <details class="row-menu">
+                                <details class="row-menu admin-row-menu">
                                     <summary>Actions</summary>
                                     <div class="row-menu-list">
                                         <a asp-action="Edit" asp-route-id="@user.Id">Edit User</a>
@@ -120,4 +134,5 @@
             </div>
         }
     </div>
+    </section>
 </section>

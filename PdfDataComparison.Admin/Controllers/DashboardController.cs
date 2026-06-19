@@ -59,20 +59,30 @@ public class DashboardController(ApplicationDbContext dbContext) : Controller
                 .ToList(),
             RecentPdfSubmissions = allPdfSubmissions
                 .Take(6)
-                .Select(x => new DashboardRecentPdfVm
+                .Select(x =>
                 {
-                    Id = x.Id,
-                    BillOfLadingNumber = x.BillOfLadingNumber,
-                    SourceFileName = x.SourceFileName,
-                    SubmittedByUserId = x.SubmittedByUserId,
-                    SubmittedAt = x.SubmittedAt,
-                    IsActive = x.IsActive
+                    var matches = TryBuildExportRows(x.PayloadJson);
+                    var fieldCount = matches.Count;
+                    var issueCount = matches.Count(isMatch => !isMatch);
+
+                    return new DashboardRecentPdfVm
+                    {
+                        Id = x.Id,
+                        BillOfLadingNumber = x.BillOfLadingNumber,
+                        SourceFileName = x.SourceFileName,
+                        SubmittedByUserId = x.SubmittedByUserId,
+                        SubmittedAt = x.SubmittedAt,
+                        IsActive = x.IsActive,
+                        FieldCount = fieldCount,
+                        IssueCount = issueCount,
+                        ValidationPercent = fieldCount > 0 ? (double)(fieldCount - issueCount) / fieldCount * 100 : 0
+                    };
                 })
                 .ToList(),
             RecentActivity = await dbContext.AuditLogs
                 .AsNoTracking()
                 .OrderByDescending(x => x.Timestamp)
-                .Take(6)
+                .Take(5)
                 .Select(x => new DashboardAuditActivityVm
                 {
                     Action = x.Action,

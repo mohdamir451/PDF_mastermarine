@@ -4,57 +4,154 @@
     ViewData["Subtitle"] = "Update profile details, account status, and role membership.";
 }
 
-<section class="page-hero">
-    <div>
-        <h2>Edit User</h2>
-        <p>Update user metadata and role membership settings.</p>
+<section class="iam-shell" data-iam-page>
+    <nav class="iam-breadcrumb" aria-label="Breadcrumb">
+        <a asp-controller="Dashboard" asp-action="Index">Administration</a>
+        <span aria-hidden="true">/</span>
+        <a asp-action="Index">Users</a>
+        <span aria-hidden="true">/</span>
+        <strong>Edit User</strong>
+    </nav>
+
+    <header class="iam-hero">
+        <div class="iam-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false"><path d="M12 12.25a4.75 4.75 0 1 0 0-9.5 4.75 4.75 0 0 0 0 9.5Zm0-7.5a2.75 2.75 0 1 1 0 5.5 2.75 2.75 0 0 1 0-5.5Zm0 9.25c-4.42 0-8 2.24-8 5v1.25h16V19c0-2.76-3.58-5-8-5Zm-5.69 4.25C6.95 17 9.12 16 12 16s5.05 1 5.69 2.25H6.31Z" /></svg>
+        </div>
+        <div>
+            <h2>Edit User</h2>
+            <p>Maintain identity details, role assignment, and account activation.</p>
+        </div>
+    </header>
+
+    <div class="iam-layout">
+        <section class="iam-form-panel" aria-labelledby="userInfoTitle">
+            <div class="iam-section-head">
+                <div>
+                    <h3 id="userInfoTitle">User Information</h3>
+                    <p>Update profile metadata and access membership with audit clarity.</p>
+                </div>
+                <span class="iam-pill">Managed Account</span>
+            </div>
+
+            <form asp-action="Edit" method="post" class="iam-form" novalidate data-clear-draft-on-submit>
+                @Html.AntiForgeryToken()
+                <input asp-for="Id" type="hidden" />
+                <div asp-validation-summary="ModelOnly" class="iam-validation-summary"></div>
+
+                <div class="iam-form-grid">
+                    <div class="iam-field">
+                        <label asp-for="FullName" class="required">Full Name</label>
+                        <input asp-for="FullName" autocomplete="name" data-iam-preview-source="fullName" />
+                        <span class="iam-help">Use the employee's official display name.</span>
+                        <span asp-validation-for="FullName" class="iam-error"></span>
+                    </div>
+                    <div class="iam-field">
+                        <label asp-for="Email" class="required">Email Address</label>
+                        <input asp-for="Email" type="email" autocomplete="email" data-iam-preview-source="email" />
+                        <span class="iam-help">Email must remain unique in this workspace.</span>
+                        <span asp-validation-for="Email" class="iam-error"></span>
+                    </div>
+                    <div class="iam-field">
+                        <label asp-for="Department" class="required">Department</label>
+                        <input asp-for="Department" placeholder="Operations" data-iam-preview-source="department" />
+                        <span class="iam-help">Department helps administrators review ownership.</span>
+                        <span asp-validation-for="Department" class="iam-error"></span>
+                    </div>
+                    <div class="iam-field">
+                        <label asp-for="RoleName" class="required">Role</label>
+                        <select asp-for="RoleName" data-iam-preview-source="roleName">
+                            <option value="">No role</option>
+                            @foreach (var role in Model.AvailableRoles)
+                            {
+                                <option value="@role">@role</option>
+                            }
+                        </select>
+                        <span class="iam-help">Keep role membership aligned with current responsibilities.</span>
+                        <span asp-validation-for="RoleName" class="iam-error"></span>
+                    </div>
+                </div>
+
+                <div class="iam-toggle-card">
+                    <div>
+                        <strong>Account Status</strong>
+                        <span>Inactive users cannot sign in, but audit history is retained.</span>
+                    </div>
+                    <label class="iam-switch">
+                        <input asp-for="IsActive" data-iam-active-source />
+                        <span class="iam-switch-track" aria-hidden="true"></span>
+                        <span>Active</span>
+                    </label>
+                </div>
+
+                <div class="iam-actions">
+                    <button class="btn btn-primary" type="submit">Save Changes</button>
+                    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+                    <a asp-action="ResetPassword" asp-route-id="@Model.Id" class="btn btn-ghost">Reset Password</a>
+                    <a asp-action="Index" class="btn btn-ghost">Back to Users</a>
+                </div>
+            </form>
+        </section>
+
+        <aside class="iam-side-panel" aria-label="User edit context">
+            <section class="iam-preview-card" aria-labelledby="userPreviewTitle">
+                <div class="iam-side-head">
+                    <h3 id="userPreviewTitle">Account Preview</h3>
+                    <span class="iam-pill @(Model.IsActive ? "active" : "inactive")" data-iam-preview-status>@(Model.IsActive ? "Active" : "Inactive")</span>
+                </div>
+                <dl class="iam-preview-list">
+                    <div><dt>Name</dt><dd data-iam-preview="fullName">@(string.IsNullOrWhiteSpace(Model.FullName) ? "User name" : Model.FullName)</dd></div>
+                    <div><dt>Email</dt><dd data-iam-preview="email">@(string.IsNullOrWhiteSpace(Model.Email) ? "name@company.com" : Model.Email)</dd></div>
+                    <div><dt>Department</dt><dd data-iam-preview="department">@(string.IsNullOrWhiteSpace(Model.Department) ? "Operations" : Model.Department)</dd></div>
+                    <div><dt>Role</dt><dd data-iam-preview="roleName">@(string.IsNullOrWhiteSpace(Model.RoleName) ? "Not assigned" : Model.RoleName)</dd></div>
+                    <div><dt>Status</dt><dd><span class="iam-pill @(Model.IsActive ? "active" : "inactive")" data-iam-preview-status-text>@(Model.IsActive ? "Active" : "Inactive")</span></dd></div>
+                </dl>
+            </section>
+
+            <section class="iam-guidelines-card" aria-labelledby="userGuidelinesTitle">
+                <h3 id="userGuidelinesTitle">User Governance Guidelines</h3>
+                <ul>
+                    <li>Review role changes before saving.</li>
+                    <li>Deactivate accounts immediately when access is no longer needed.</li>
+                    <li>Use password reset only for verified account owners.</li>
+                    <li>Keep department metadata current for audit review.</li>
+                </ul>
+            </section>
+        </aside>
     </div>
-    <a asp-action="Index" class="btn btn-secondary">Back to Users</a>
 </section>
 
-<section class="card form-card">
-    <form asp-action="Edit" method="post">
-        @Html.AntiForgeryToken()
-        <input asp-for="Id" type="hidden" />
-        <div asp-validation-summary="ModelOnly" class="alert danger"></div>
-
-        <div class="form-grid">
-            <div class="form-group">
-                <label asp-for="FullName" class="required">Full Name</label>
-                <input asp-for="FullName" autocomplete="name" />
-                <span asp-validation-for="FullName" class="field-validation-error"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Email" class="required">Email Address</label>
-                <input asp-for="Email" type="email" autocomplete="email" />
-                <span asp-validation-for="Email" class="field-validation-error"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="Department">Department</label>
-                <input asp-for="Department" placeholder="Operations" />
-                <span asp-validation-for="Department" class="field-validation-error"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="RoleName">Role</label>
-                <select asp-for="RoleName">
-                    <option value="">No role</option>
-                    @foreach (var role in Model.AvailableRoles)
-                    {
-                        <option value="@role">@role</option>
-                    }
-                </select>
-                <span asp-validation-for="RoleName" class="field-validation-error"></span>
-            </div>
-        </div>
-
-        <label class="checkbox-row">
-            <input asp-for="IsActive" />
-            <span>Account is active</span>
-        </label>
-
-        <div class="toolbar">
-            <button class="btn btn-primary" type="submit">Save Changes</button>
-            <a asp-action="Index" class="btn btn-secondary">Cancel</a>
-        </div>
-    </form>
-</section>
+<script>
+(() => {
+    const shell = document.querySelector('[data-iam-page]');
+    if (!shell) return;
+    const form = shell.querySelector('.iam-form');
+    const defaults = { fullName: 'User name', email: 'name@company.com', department: 'Operations', roleName: 'Not assigned' };
+    const activeInput = shell.querySelector('[data-iam-active-source]');
+    const statusNodes = shell.querySelectorAll('[data-iam-preview-status], [data-iam-preview-status-text]');
+    const update = (field) => {
+        const key = field.dataset.iamPreviewSource;
+        const target = shell.querySelector(`[data-iam-preview="${key}"]`);
+        if (target) target.textContent = field.value.trim() || defaults[key] || '-';
+    };
+    const updateStatus = () => {
+        const active = !activeInput || activeInput.checked;
+        statusNodes.forEach((node) => {
+            node.textContent = active ? 'Active' : 'Inactive';
+            node.classList.toggle('active', active);
+            node.classList.toggle('inactive', !active);
+        });
+    };
+    shell.querySelectorAll('[data-iam-preview-source]').forEach((field) => {
+        field.addEventListener('input', () => update(field));
+        field.addEventListener('change', () => update(field));
+        field.addEventListener('blur', () => field.closest('.iam-field')?.classList.add('is-touched'));
+        update(field);
+    });
+    activeInput?.addEventListener('change', updateStatus);
+    form?.addEventListener('submit', () => {
+        form.classList.add('was-submitted');
+        shell.querySelectorAll('.iam-field').forEach((group) => group.classList.add('is-touched'));
+    });
+    updateStatus();
+})();
+</script>

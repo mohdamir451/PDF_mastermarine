@@ -14,7 +14,11 @@ public class PermissionClaimsTransformation(IPermissionService permissionService
 
         var userId = identity.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrWhiteSpace(userId)) return principal;
-        if (identity.HasClaim(c => c.Type == "permission")) return principal;
+
+        foreach (var existingPermission in identity.FindAll("permission").ToList())
+        {
+            identity.RemoveClaim(existingPermission);
+        }
 
         var permissions = await permissionService.GetUserPermissionKeysAsync(userId);
         foreach (var permission in permissions)

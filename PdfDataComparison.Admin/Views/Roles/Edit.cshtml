@@ -4,39 +4,112 @@
     ViewData["Subtitle"] = "Adjust role metadata and governance notes.";
 }
 
-<section class="page-hero">
-    <div>
-        <h2>Edit Role</h2>
-        <p>Update role context and prepare permission updates.</p>
+<section class="iam-shell" data-iam-page>
+    <nav class="iam-breadcrumb" aria-label="Breadcrumb">
+        <a asp-controller="Dashboard" asp-action="Index">Administration</a>
+        <span aria-hidden="true">/</span>
+        <a asp-action="Index">Roles</a>
+        <span aria-hidden="true">/</span>
+        <strong>Edit Role</strong>
+    </nav>
+
+    <header class="iam-hero">
+        <div class="iam-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false"><path d="M12 2.25 4.75 5.4v5.35c0 4.7 3.02 8.9 7.25 10.35 4.23-1.45 7.25-5.65 7.25-10.35V5.4L12 2.25Zm0 2.18 5.25 2.28v4.04c0 3.55-2.1 6.82-5.25 8.22-3.15-1.4-5.25-4.67-5.25-8.22V6.71L12 4.43Zm0 4.32a2.25 2.25 0 0 0-2.25 2.25v1.25h-.5v4.5h5.5v-4.5h-.5V11A2.25 2.25 0 0 0 12 8.75Z" /></svg>
+        </div>
+        <div>
+            <h2>Edit Role</h2>
+            <p>Update role identity and governance notes before permission review.</p>
+        </div>
+    </header>
+
+    <div class="iam-layout">
+        <section class="iam-form-panel" aria-labelledby="roleInfoTitle">
+            <div class="iam-section-head">
+                <div>
+                    <h3 id="roleInfoTitle">Role Information</h3>
+                    <p>Keep role names clear, auditable, and aligned to least privilege.</p>
+                </div>
+                <span class="iam-pill">Existing Role</span>
+            </div>
+
+            <form asp-action="Edit" method="post" class="iam-form" novalidate data-clear-draft-on-submit>
+                @Html.AntiForgeryToken()
+                <input asp-for="Id" type="hidden" />
+                <div asp-validation-summary="ModelOnly" class="iam-validation-summary"></div>
+
+                <div class="iam-form-grid">
+                    <div class="iam-field">
+                        <label>Role ID</label>
+                        <input value="@Model.Id" readonly />
+                        <span class="iam-help">System identifier used for role governance.</span>
+                    </div>
+                    <div class="iam-field">
+                        <label asp-for="Name" class="required">Role Name</label>
+                        <input asp-for="Name" placeholder="Operations Administrator" autocomplete="off" data-iam-preview-source="roleName" />
+                        <span class="iam-help">Unique role name visible to administrators.</span>
+                        <span asp-validation-for="Name" class="iam-error"></span>
+                    </div>
+                    <div class="iam-field full">
+                        <label asp-for="Description">Description</label>
+                        <textarea asp-for="Description" rows="4" placeholder="Full operational access" data-iam-preview-source="description"></textarea>
+                        <span class="iam-help">Describe the purpose and responsibilities of this role.</span>
+                        <span asp-validation-for="Description" class="iam-error"></span>
+                    </div>
+                </div>
+
+                <div class="iam-actions">
+                    <button class="btn btn-primary" type="submit">Save Role</button>
+                    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+                    <a asp-action="Index" class="btn btn-ghost">Back to Roles</a>
+                </div>
+            </form>
+        </section>
+
+        <aside class="iam-side-panel" aria-label="Role edit context">
+            <section class="iam-preview-card" aria-labelledby="rolePreviewTitle">
+                <div class="iam-side-head">
+                    <h3 id="rolePreviewTitle">Role Preview</h3>
+                    <span class="iam-pill">Managed</span>
+                </div>
+                <dl class="iam-preview-list">
+                    <div><dt>Role Name</dt><dd data-iam-preview="roleName">@(string.IsNullOrWhiteSpace(Model.Name) ? "Operations Administrator" : Model.Name)</dd></div>
+                    <div><dt>Description</dt><dd data-iam-preview="description">@(string.IsNullOrWhiteSpace(Model.Description) ? "Full operational access" : Model.Description)</dd></div>
+                    <div><dt>Permissions</dt><dd>Configured separately</dd></div>
+                    <div><dt>Status</dt><dd><span class="iam-pill active">Active Metadata</span></dd></div>
+                </dl>
+            </section>
+
+            <section class="iam-guidelines-card" aria-labelledby="roleGuidelinesTitle">
+                <h3 id="roleGuidelinesTitle">Role Editing Guidelines</h3>
+                <ul>
+                    <li>Keep names stable for audit traceability.</li>
+                    <li>Review permissions after metadata changes.</li>
+                    <li>Avoid broad administrative responsibilities.</li>
+                    <li>Document the role owner and purpose.</li>
+                </ul>
+            </section>
+        </aside>
     </div>
-    <a asp-action="Index" class="btn btn-secondary">Back to Roles</a>
 </section>
 
-<section class="card form-card">
-    <form asp-action="Edit" method="post">
-        @Html.AntiForgeryToken()
-        <input asp-for="Id" type="hidden" />
-        <div asp-validation-summary="ModelOnly" class="field-validation-error"></div>
-        <div class="form-grid">
-        <div class="form-group">
-            <label>Role ID</label>
-            <input value="@Model.Id" readonly />
-        </div>
-        <div class="form-group">
-            <label asp-for="Name" class="required">Role Name</label>
-            <input asp-for="Name" placeholder="Operations Admin" />
-            <span asp-validation-for="Name" class="field-validation-error"></span>
-        </div>
-        </div>
-
-        <div class="form-group">
-            <label asp-for="Description">Description</label>
-            <textarea asp-for="Description" rows="3" placeholder="Role responsibility summary"></textarea>
-        </div>
-
-        <div class="toolbar">
-            <button class="btn btn-primary" type="submit">Save Role</button>
-            <a asp-action="Index" class="btn btn-secondary">Cancel</a>
-        </div>
-    </form>
-</section>
+<script>
+(() => {
+    const shell = document.querySelector('[data-iam-page]');
+    if (!shell) return;
+    const form = shell.querySelector('.iam-form');
+    const update = (source) => {
+        const target = shell.querySelector(`[data-iam-preview="${source.dataset.iamPreviewSource}"]`);
+        if (target) target.textContent = source.value.trim() || (source.tagName === 'TEXTAREA' ? 'Full operational access' : 'Operations Administrator');
+    };
+    shell.querySelectorAll('[data-iam-preview-source]').forEach((field) => {
+        field.addEventListener('input', () => update(field));
+        field.addEventListener('blur', () => field.closest('.iam-field')?.classList.add('is-touched'));
+        update(field);
+    });
+    form?.addEventListener('submit', () => {
+        form.classList.add('was-submitted');
+        shell.querySelectorAll('.iam-field').forEach((group) => group.classList.add('is-touched'));
+    });
+})();
+</script>

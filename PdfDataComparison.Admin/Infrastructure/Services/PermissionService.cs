@@ -72,6 +72,7 @@ public class PermissionService(
         if (permissionKey.EndsWith(".Submit", StringComparison.OrdinalIgnoreCase)) return canSubmit;
         if (permissionKey.EndsWith(".Export", StringComparison.OrdinalIgnoreCase)) return canExport;
         if (permissionKey.EndsWith(".Edit", StringComparison.OrdinalIgnoreCase)) return canEdit;
+        if (permissionKey.EndsWith(".Manage", StringComparison.OrdinalIgnoreCase)) return canEdit;
         if (permissionKey.EndsWith(".Create", StringComparison.OrdinalIgnoreCase)) return canCreate;
         if (permissionKey.EndsWith(".Delete", StringComparison.OrdinalIgnoreCase)) return canDelete;
         return canView;

@@ -114,6 +114,11 @@
 
     restoreDraft();
     document.addEventListener('input', saveDraft);
+    document.addEventListener('submit', (event) => {
+        if (event.target instanceof HTMLFormElement && event.target.matches('[data-clear-draft-on-submit]')) {
+            sessionStorage.removeItem(storageKey);
+        }
+    }, true);
     ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach((eventName) => {
         document.addEventListener(eventName, resetIdleTimers, { passive: true });
     });

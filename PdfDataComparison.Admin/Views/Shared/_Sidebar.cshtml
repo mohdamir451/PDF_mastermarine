@@ -98,6 +98,14 @@
             </a>
         }
 
+        @if (User.HasClaim("permission", PermissionCatalog.SettingsManage) || User.IsInRole("SuperAdmin"))
+        {
+            <a class="@ActiveClass("Settings")" asp-controller="Settings" asp-action="Index" data-nav-item="Settings" title="Settings">
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" class="icon-svg"><path d="M19.43 12.98c.04-.32.07-.65.07-.98s-.02-.66-.07-.98l2.11-1.65-2-3.46-2.49 1a7.1 7.1 0 0 0-1.7-.98L15 3.25h-4l-.35 2.68c-.6.24-1.17.56-1.7.98l-2.49-1-2 3.46 2.11 1.65c-.04.32-.07.65-.07.98s.02.66.07.98l-2.11 1.65 2 3.46 2.49-1c.53.41 1.1.74 1.7.98L11 20.75h4l.35-2.68c.6-.24 1.17-.56 1.7-.98l2.49 1 2-3.46-2.11-1.65zM13 15.5A3.5 3.5 0 1 1 13 8a3.5 3.5 0 0 1 0 7.5z"/></svg></span>
+                <span>Settings</span>
+            </a>
+        }
+
     </nav>
 
     <div class="sidebar-footer">

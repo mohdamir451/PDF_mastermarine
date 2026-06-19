@@ -2,26 +2,46 @@
 @{
     ViewData["Title"] = "Download Diagnostics";
     ViewData["Subtitle"] = "Inspect selected Excel ZIP download errors and trace references.";
+    var errorCount = Model.Entries.Count(x => x.Level.Equals("Error", StringComparison.OrdinalIgnoreCase));
+    var warningCount = Model.Entries.Count(x => x.Level.Equals("Warning", StringComparison.OrdinalIgnoreCase));
+    var latestEntry = Model.Entries.OrderByDescending(x => x.TimestampUtc).FirstOrDefault();
 }
 
-<section class="page-hero">
-    <div>
-        <h2>Download Diagnostics</h2>
-        <p>Use this page to match browser error references with server-side download exceptions.</p>
-    </div>
-    <div class="table-tools">
-        <a asp-controller="ComparisonJobs" asp-action="SubmittedPdfData" class="btn btn-ghost">Submitted PDF Data</a>
-        <span class="badge neutral">@Model.Entries.Count log entries</span>
-    </div>
-</section>
-
-<section class="card diagnostics-card">
-    <div class="action-bar diagnostics-toolbar">
-        <div>
-            <h3 class="card-title">Selected Excel ZIP Logs</h3>
-            <p class="form-help">Newest entries are shown first. Search by error reference, selected ID, user, message, or exception text.</p>
+<section class="admin-page-shell">
+    <header class="admin-page-hero">
+        <div class="admin-title-block">
+            <h2>Download Diagnostics</h2>
+            <p>Match browser error references with server-side download exceptions.</p>
         </div>
+        <div class="admin-header-actions">
+            <span class="admin-record-pill">@Model.Entries.Count log entries</span>
+            <a asp-controller="ComparisonJobs" asp-action="SubmittedPdfData" class="btn btn-ghost">Submitted PDF Data</a>
+        </div>
+    </header>
+
+    <section class="admin-panel diagnostics-card">
+    <div class="admin-summary-grid compact-three" aria-label="Download diagnostics summary">
+        <div class="admin-summary-card metric-risk"><strong>@errorCount</strong><span>Errors</span></div>
+        <div class="admin-summary-card metric-review"><strong>@warningCount</strong><span>Warnings</span></div>
+        <div class="admin-summary-card metric-date"><strong>@(latestEntry == null ? "-" : latestEntry.TimestampUtc.ToLocalTime().ToString("dd MMM"))</strong><span>Latest Entry</span></div>
+    </div>
+
+    <div class="admin-toolbar diagnostics-toolbar">
+        <div class="admin-toolbar-title">
+            <strong>Selected Excel ZIP Logs</strong>
+            <span>Newest entries first. Search by error reference, selected ID, user, message, or exception text.</span>
+        </div>
+        <div class="diagnostics-toolbar-controls">
         <input id="diagnosticsSearch" type="search" placeholder="Search logs..." aria-label="Search download diagnostics" />
+            <span class="badge neutral visible-count" id="diagnosticsVisibleCount" aria-live="polite">0/0</span>
+            <label for="diagnosticsPageSize" class="sr-only">Rows per page</label>
+            <select id="diagnosticsPageSize" class="admin-page-size" aria-label="Rows per page">
+                <option value="5">5 rows</option>
+                <option value="10" selected>10 rows</option>
+                <option value="25">25 rows</option>
+                <option value="50">50 rows</option>
+            </select>
+        </div>
     </div>
 
     @if (Model.Entries.Any())
@@ -32,7 +52,7 @@
                 var levelClass = entry.Level.Equals("Error", StringComparison.OrdinalIgnoreCase) ? "danger" :
                     entry.Level.Equals("Warning", StringComparison.OrdinalIgnoreCase) ? "warning" : "info";
 
-                <article class="diagnostic-entry" data-diagnostic-entry>
+                <article class="diagnostic-entry @levelClass" data-diagnostic-entry>
                     <div class="diagnostic-entry-head">
                         <span class="badge @levelClass">@entry.Level</span>
                         <strong>@entry.Message</strong>
@@ -54,6 +74,11 @@
                 </article>
             }
         </div>
+        <div class="admin-pagination" aria-label="Download diagnostic pages">
+            <button type="button" class="btn btn-ghost btn-small" id="diagnosticsPrevPageBtn">Previous</button>
+            <span class="badge neutral" id="diagnosticsPageInfo">Page 1 of 1</span>
+            <button type="button" class="btn btn-ghost btn-small" id="diagnosticsNextPageBtn">Next</button>
+        </div>
         <div class="empty-state compact-empty" id="diagnosticsNoResults" hidden>
             <h3>No logs match your search</h3>
             <p>Clear the search box to show all diagnostic entries.</p>
@@ -67,32 +92,58 @@
             <p>Entries will appear here after a selected Excel ZIP download is attempted.</p>
         </div>
     }
+    </section>
 </section>
 
 <style>
-    .diagnostics-card {
-        overflow: hidden;
+    .diagnostics-toolbar {
+        align-items: center;
     }
 
-    .diagnostics-toolbar {
-        align-items: flex-end;
-        gap: 16px;
+    .diagnostics-toolbar-controls {
+        align-items: center;
+        display: flex;
+        flex: 1 1 520px;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
     }
 
     .diagnostics-toolbar input {
-        width: min(420px, 100%);
+        flex: 1 1 280px;
+        min-height: 34px;
     }
 
     .diagnostics-list {
         display: grid;
-        gap: 12px;
+        gap: 8px;
     }
 
     .diagnostic-entry {
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        background: var(--surface);
-        padding: 14px;
+        border: 1px solid var(--admin-border, var(--border));
+        border-left: 4px solid #94a3b8;
+        border-radius: 12px;
+        background: #fff;
+        padding: 12px;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, .035);
+        transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease;
+    }
+
+    .diagnostic-entry:hover {
+        background: #fbfdff;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, .07);
+    }
+
+    .diagnostic-entry.danger {
+        border-left-color: #ef4444;
+    }
+
+    .diagnostic-entry.warning {
+        border-left-color: #f59e0b;
+    }
+
+    .diagnostic-entry.info {
+        border-left-color: #3b82f6;
     }
 
     .diagnostic-entry-head {
@@ -107,7 +158,7 @@
     }
 
     .diagnostic-entry-head time {
-        color: var(--text-muted);
+        color: var(--muted);
         font-size: 12px;
         font-weight: 700;
         white-space: nowrap;
@@ -116,35 +167,37 @@
     .diagnostic-meta-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 10px;
-        margin-top: 12px;
+        gap: 8px;
+        margin-top: 8px;
     }
 
     .diagnostic-meta-grid div {
         min-width: 0;
-        border: 1px solid var(--border);
+        border: 1px solid var(--admin-border, var(--border));
         border-radius: 8px;
-        background: var(--surface-muted);
-        padding: 10px;
+        background: #f8fafc;
+        padding: 8px;
     }
 
     .diagnostic-meta-grid span {
         display: block;
-        color: var(--text-muted);
-        font-size: 12px;
+        color: var(--muted);
+        font-size: 11px;
         font-weight: 800;
         text-transform: uppercase;
+        letter-spacing: .04em;
     }
 
     .diagnostic-meta-grid strong {
         display: block;
-        margin-top: 4px;
+        margin-top: 2px;
         color: var(--text);
         overflow-wrap: anywhere;
+        font-size: 12px;
     }
 
     .diagnostic-exception {
-        margin-top: 12px;
+        margin-top: 8px;
     }
 
     .diagnostic-exception summary {
@@ -158,7 +211,7 @@
         overflow: auto;
         margin: 10px 0 0;
         padding: 12px;
-        border: 1px solid var(--border);
+        border: 1px solid #1e293b;
         border-radius: 8px;
         background: #0f172a;
         color: #e2e8f0;
@@ -175,8 +228,17 @@
 
     @@media (max-width: 720px) {
         .diagnostics-toolbar,
+        .diagnostics-toolbar-controls,
         .diagnostic-entry-head {
+            align-items: stretch;
+            flex-direction: column;
             grid-template-columns: 1fr;
+        }
+
+        .diagnostics-toolbar input,
+        .diagnostics-toolbar-controls .badge,
+        .diagnostics-toolbar-controls select {
+            width: 100%;
         }
 
         .diagnostic-meta-grid {
@@ -190,20 +252,40 @@
     const search = document.getElementById('diagnosticsSearch');
     const entries = Array.from(document.querySelectorAll('[data-diagnostic-entry]'));
     const noResults = document.getElementById('diagnosticsNoResults');
+    const pageSize = document.getElementById('diagnosticsPageSize');
+    const prev = document.getElementById('diagnosticsPrevPageBtn');
+    const next = document.getElementById('diagnosticsNextPageBtn');
+    const pageInfo = document.getElementById('diagnosticsPageInfo');
+    const visibleCount = document.getElementById('diagnosticsVisibleCount');
+    let currentPage = 1;
 
-    if (!search) return;
+    if (!entries.length) return;
 
-    search.addEventListener('input', () => {
-        const query = search.value.trim().toLowerCase();
-        let visible = 0;
+    const render = (resetPage = false) => {
+        if (resetPage) currentPage = 1;
+        const query = (search?.value || '').trim().toLowerCase();
+        const size = Number.parseInt(pageSize?.value || '10', 10) || 10;
+        const matched = entries.filter((entry) => !query || entry.innerText.toLowerCase().includes(query));
+        const totalPages = Math.max(1, Math.ceil(matched.length / size));
+        currentPage = Math.min(Math.max(currentPage, 1), totalPages);
+        const start = (currentPage - 1) * size;
+        const visibleSet = new Set(matched.slice(start, start + size));
 
         entries.forEach((entry) => {
-            const isVisible = !query || entry.innerText.toLowerCase().includes(query);
-            entry.hidden = !isVisible;
-            if (isVisible) visible += 1;
+            entry.hidden = !visibleSet.has(entry);
         });
 
-        if (noResults) noResults.hidden = visible > 0;
-    });
+        if (visibleCount) visibleCount.textContent = `${matched.length}/${entries.length}`;
+        if (pageInfo) pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+        if (prev) prev.disabled = currentPage <= 1;
+        if (next) next.disabled = currentPage >= totalPages;
+        if (noResults) noResults.hidden = matched.length > 0;
+    };
+
+    search?.addEventListener('input', () => render(true));
+    pageSize?.addEventListener('change', () => render(true));
+    prev?.addEventListener('click', () => { currentPage -= 1; render(); });
+    next?.addEventListener('click', () => { currentPage += 1; render(); });
+    render(true);
 })();
 </script>

@@ -2,7 +2,7 @@
 @using System.Globalization
 @{
     ViewData["Title"] = "Dashboard";
-    ViewData["Subtitle"] = "Operational overview from live application tables";
+    ViewData["Subtitle"] = "Enterprise validation operations";
 
     var culture = CultureInfo.InvariantCulture;
     var activePdfRate = Model.TotalPdfSubmissions > 0 ? (double)Model.ActivePdfSubmissions / Model.TotalPdfSubmissions * 100 : 0;
@@ -14,64 +14,69 @@
     var maxStatus = Math.Max(1, Model.JobStatusBreakdown.Any() ? Model.JobStatusBreakdown.Max(x => x.Count) : 0);
 }
 
-<section class="dashboard-workspace">
-    <div class="dashboard-header">
-        <div>
-            <p class="dashboard-eyebrow">PDF validation operations</p>
-            <h2>Enterprise Validation Dashboard</h2>
-            <span>Data is calculated from users, roles, comparison jobs, comparison fields, PDF submissions, and audit logs.</span>
-            <div class="dashboard-header-pills">
-                <span><b>@Model.TotalComparisonJobs.ToString("N0")</b> Jobs</span>
-                <span><b>@Model.TotalPdfSubmissions.ToString("N0")</b> PDF Records</span>
-                <span><b>@Model.TotalComparisonFields.ToString("N0")</b> Fields</span>
+<section class="ops-dashboard">
+    <div class="ops-top-grid">
+        <section class="ops-summary-panel">
+            <div>
+                <p  class="ops-eyebrow">Operations Dashboard</p>
+                <span>Live overview of PDF validation records, comparison health, access posture, and audit activity.</span>
             </div>
-        </div>
-        <div class="dashboard-header-meta">
-            <span>Last PDF Save</span>
-            <strong>@(Model.LastPdfSubmittedAt?.ToString("yyyy-MM-dd HH:mm") ?? "No PDF submissions")</strong>
-            <small>Last Activity: @(Model.LastActivityAt?.ToString("yyyy-MM-dd HH:mm") ?? "No audit activity")</small>
-        </div>
+            <div class="ops-summary-pills" aria-label="Dashboard totals">
+                <span><b>@Model.TotalComparisonJobs.ToString("N0")</b> jobs</span>
+                <span><b>@Model.TotalPdfSubmissions.ToString("N0")</b> PDF records</span>
+                <span><b>@Model.TotalComparisonFields.ToString("N0")</b> fields</span>
+            </div>
+        </section>
+
+        <section class="ops-activity-card">
+            <div class="ops-card-heading">
+                <span>Last Activity</span>
+                <a asp-controller="Audit" asp-action="Index">View All</a>
+            </div>
+            <strong>@(Model.LastActivityAt?.ToString("dd MMM, HH:mm") ?? "No activity")</strong>
+            <small>Last PDF saved: @(Model.LastPdfSubmittedAt?.ToString("dd MMM, HH:mm") ?? "No PDF submissions")</small>
+        </section>
     </div>
 
-    <div class="dashboard-kpi-grid">
-        <article class="dashboard-kpi-card accent-blue">
-            <span>Active PDF Records</span>
+    <div class="ops-kpi-grid" aria-label="Executive metrics">
+        <article class="ops-kpi accent-blue">
+            <span>Active Records</span>
             <strong>@Model.ActivePdfSubmissions.ToString("N0")</strong>
-            <small>@activePdfRate.ToString("0.0")% of saved PDF records are active</small>
+            <small>@activePdfRate.ToString("0.0")% current records</small>
         </article>
-        <article class="dashboard-kpi-card accent-amber">
-            <span>Records Needing Review</span>
+        <article class="ops-kpi accent-red">
+            <span>Needs Review</span>
             <strong>@Model.PdfSubmissionsNeedingReview.ToString("N0")</strong>
-            <small>Active saved PDFs with unresolved validation issues</small>
+            <small>PDF records with issues</small>
         </article>
-        <article class="dashboard-kpi-card accent-green">
-            <span>Completed Records</span>
+        <article class="ops-kpi accent-green">
+            <span>Completed</span>
             <strong>@Model.CompletePdfSubmissions.ToString("N0")</strong>
-            <small>@completeRate.ToString("0.0")% complete from active validation records</small>
+            <small>@completeRate.ToString("0.0")% validation pass rate</small>
         </article>
-        <article class="dashboard-kpi-card accent-red">
-            <span>Blocking Field Issues</span>
+        <article class="ops-kpi accent-amber">
+            <span>Blocking Issues</span>
             <strong>@Model.PendingMismatches.ToString("N0")</strong>
-            <small>@Model.BlockingComparisonFields.ToString("N0") blocking fields configured</small>
+            <small>@Model.BlockingComparisonFields.ToString("N0") blocking fields</small>
         </article>
     </div>
 
-    <div class="dashboard-main-grid">
-        <section class="dashboard-panel dashboard-panel-large">
-            <div class="dashboard-panel-head">
+    <div class="ops-health-grid">
+        <section class="ops-panel">
+            <div class="ops-panel-head">
                 <div>
                     <h3>Submission Trend</h3>
-                    <span>PDF submissions grouped from saved records</span>
+                    <span>Saved PDF records over the last 7 days</span>
                 </div>
-                <a asp-controller="ComparisonJobs" asp-action="SubmittedPdfData" class="dashboard-link-button">Open Submitted Data</a>
+                <a asp-controller="ComparisonJobs" asp-action="SubmittedPdfData">View All</a>
             </div>
-            <div class="dashboard-trend-chart">
+            <div class="ops-trend-chart">
                 @foreach (var point in Model.PdfSubmissionTrend)
                 {
-                    var height = point.Count > 0 ? Math.Max(10, (double)point.Count / maxTrend * 100) : 2;
-                    <div class="dashboard-trend-item">
-                        <div class="dashboard-trend-column">
-                            <div class="dashboard-trend-bar" style="height:@height.ToString("0.##", culture)%"></div>
+                    var height = point.Count > 0 ? Math.Max(10, (double)point.Count / maxTrend * 100) : 3;
+                    <div class="ops-trend-item">
+                        <div class="ops-trend-column">
+                            <div class="ops-trend-bar" style="height:@height.ToString("0.##", culture)%"></div>
                         </div>
                         <strong>@point.Count.ToString("N0")</strong>
                         <span>@point.Date.ToString("dd MMM")</span>
@@ -80,129 +85,60 @@
             </div>
         </section>
 
-        <section class="dashboard-panel">
-            <div class="dashboard-panel-head">
+        <section class="ops-panel">
+            <div class="ops-panel-head">
                 <div>
                     <h3>Validation Health</h3>
-                    <span>Active saved PDF records</span>
+                    <span>Completion and comparison status</span>
                 </div>
                 <strong>@completeRate.ToString("0.0")%</strong>
             </div>
-            <div class="dashboard-ring" style="--ring-value:@completeRate.ToString("0.##", culture)">
-                <div>
-                    <strong>@Model.CompletePdfSubmissions.ToString("N0")</strong>
-                    <span>complete</span>
+            <div class="ops-health-content">
+                <div class="ops-ring" style="--ring-value:@completeRate.ToString("0.##", culture)">
+                    <div>
+                        <strong>@Model.CompletePdfSubmissions.ToString("N0")</strong>
+                        <span>complete</span>
+                    </div>
                 </div>
-            </div>
-            <div class="dashboard-split-metrics">
-                <span><b>@Model.CompletePdfSubmissions.ToString("N0")</b> Complete</span>
-                <span><b>@Model.PdfSubmissionsNeedingReview.ToString("N0")</b> Needs review</span>
-            </div>
-        </section>
-    </div>
-
-    <div class="dashboard-insight-grid">
-        <section class="dashboard-panel">
-            <div class="dashboard-panel-head">
-                <div>
-                    <h3>PDF Record Lifecycle</h3>
-                    <span>Active and replaced rows from PDF submissions</span>
-                </div>
-            </div>
-            <div class="dashboard-progress-stack">
-                <div class="dashboard-progress-row">
-                    <span>Active records</span>
-                    <b>@Model.ActivePdfSubmissions.ToString("N0")</b>
-                </div>
-                <div class="dashboard-track"><div style="width:@activePdfRate.ToString("0.##", culture)%"></div></div>
-                <div class="dashboard-progress-row">
-                    <span>Replaced records</span>
-                    <b>@Model.ReplacedPdfSubmissions.ToString("N0")</b>
-                </div>
-                <div class="dashboard-track muted"><div style="width:@(Model.TotalPdfSubmissions > 0 ? ((double)Model.ReplacedPdfSubmissions / Model.TotalPdfSubmissions * 100).ToString("0.##", culture) : "0")%"></div></div>
-            </div>
-        </section>
-
-        <section class="dashboard-panel">
-            <div class="dashboard-panel-head">
-                <div>
-                    <h3>Comparison Fields</h3>
-                    <span>Field-level match quality</span>
-                </div>
-                <strong>@fieldMatchRate.ToString("0.0")%</strong>
-            </div>
-            <div class="dashboard-field-grid">
-                <div><span>Total Fields</span><strong>@Model.TotalComparisonFields.ToString("N0")</strong></div>
-                <div><span>Matched</span><strong>@Model.MatchedComparisonFields.ToString("N0")</strong></div>
-                <div><span>Blocking</span><strong>@Model.BlockingComparisonFields.ToString("N0")</strong></div>
-                <div><span>Pending</span><strong>@Model.PendingMismatches.ToString("N0")</strong></div>
-            </div>
-        </section>
-
-        <section class="dashboard-panel">
-            <div class="dashboard-panel-head">
-                <div>
-                    <h3>User Access</h3>
-                    <span>User and role tables</span>
-                </div>
-                <a asp-controller="Users" asp-action="Index" class="dashboard-link-button">Users</a>
-            </div>
-            <div class="dashboard-access-grid">
-                <div><span>Total Users</span><strong>@Model.TotalUsers.ToString("N0")</strong></div>
-                <div><span>Active Users</span><strong>@Model.ActiveUsers.ToString("N0")</strong></div>
-                <div><span>Inactive Users</span><strong>@Model.InactiveUsers.ToString("N0")</strong></div>
-                <div><span>Roles</span><strong>@Model.TotalRoles.ToString("N0")</strong></div>
-            </div>
-            <div class="dashboard-track user"><div style="width:@activeUserRate.ToString("0.##", culture)%"></div></div>
-        </section>
-    </div>
-
-    <div class="dashboard-lower-grid">
-        <section class="dashboard-panel">
-            <div class="dashboard-panel-head">
-                <div>
-                    <h3>Comparison Job Status</h3>
-                    <span>Status grouped from comparison jobs</span>
-                </div>
-                <a asp-controller="ComparisonJobs" asp-action="Index" class="dashboard-link-button">Jobs</a>
-            </div>
-            @if (Model.JobStatusBreakdown.Any())
-            {
-                <div class="dashboard-status-list">
-                    @foreach (var status in Model.JobStatusBreakdown)
+                <div class="ops-status-grid">
+                    @if (Model.JobStatusBreakdown.Any())
                     {
-                        var width = (double)status.Count / maxStatus * 100;
-                        <div class="dashboard-status-row">
-                            <div>
-                                <span>@status.Status</span>
-                                <b>@status.Count.ToString("N0")</b>
+                        @foreach (var status in Model.JobStatusBreakdown)
+                        {
+                            var width = (double)status.Count / maxStatus * 100;
+                            <div class="ops-status-mini">
+                                <div><span>@status.Status</span><b>@status.Count.ToString("N0")</b></div>
+                                <div class="ops-track"><div style="width:@width.ToString("0.##", culture)%"></div></div>
                             </div>
-                            <div class="dashboard-track"><div style="width:@width.ToString("0.##", culture)%"></div></div>
-                        </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="ops-empty compact">No comparison job status rows.</div>
                     }
                 </div>
-            }
-            else
-            {
-                <div class="dashboard-empty">No comparison job rows found.</div>
-            }
+            </div>
         </section>
+    </div>
 
-        <section class="dashboard-panel dashboard-panel-table">
-            <div class="dashboard-panel-head">
+    <div class="ops-data-grid">
+        <section class="ops-panel ops-records-panel">
+            <div class="ops-panel-head">
                 <div>
                     <h3>Recent PDF Records</h3>
-                    <span>Latest saved rows from PDF submissions</span>
+                    <span>Primary operational queue for saved validation records</span>
                 </div>
+                <a asp-controller="ComparisonJobs" asp-action="SubmittedPdfData">View All</a>
             </div>
-            <div class="dashboard-table-wrap">
-                <table class="dashboard-table">
+            <div class="ops-table-wrap">
+                <table class="ops-table">
                     <thead>
                         <tr>
-                            <th>BL Number</th>
-                            <th>Source File</th>
+                            <th>Bill of Lading</th>
+                            <th>Submitted By</th>
+                            <th>Validation</th>
                             <th>Saved</th>
-                            <th>Status</th>
+                            <th>Quick Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -210,353 +146,427 @@
                         {
                             @foreach (var item in Model.RecentPdfSubmissions)
                             {
+                                var validationClass = item.IssueCount > 0 ? "warning" : "success";
                                 <tr>
-                                    <td>@item.BillOfLadingNumber</td>
-                                    <td>@item.SourceFileName</td>
-                                    <td>@item.SubmittedAt.ToString("yyyy-MM-dd")</td>
-                                    <td><span class="dashboard-pill @(item.IsActive ? "success" : "muted")">@(item.IsActive ? "Active" : "Replaced")</span></td>
+                                    <td>
+                                        <strong>@item.BillOfLadingNumber</strong>
+                                        <span title="@item.SourceFileName">@item.SourceFileName</span>
+                                    </td>
+                                    <td>@item.SubmittedByUserId</td>
+                                    <td>
+                                        <div class="ops-validation-cell">
+                                            <span class="ops-pill @validationClass">@item.ValidationPercent.ToString("0")%</span>
+                                            <small>@item.IssueCount.ToString("N0") issues / @item.FieldCount.ToString("N0") fields</small>
+                                        </div>
+                                    </td>
+                                    <td>@item.SubmittedAt.ToString("dd MMM HH:mm")</td>
+                                    <td>
+                                        <a asp-controller="ComparisonJobs" asp-action="SubmittedPdfData" class="ops-action-link">Open</a>
+                                    </td>
                                 </tr>
                             }
                         }
                         else
                         {
-                            <tr><td colspan="4">No PDF submission rows found.</td></tr>
+                            <tr><td colspan="5">No PDF submission rows found.</td></tr>
                         }
                     </tbody>
                 </table>
             </div>
         </section>
+
+        <section class="ops-panel ops-audit-panel">
+            <div class="ops-panel-head">
+                <div>
+                    <h3>Audit Activity</h3>
+                    <span>Latest 5 security and workflow events</span>
+                </div>
+                <a asp-controller="Audit" asp-action="Index">View All</a>
+            </div>
+            <div class="ops-audit-list">
+                @if (Model.RecentActivity.Any())
+                {
+                    @foreach (var activity in Model.RecentActivity)
+                    {
+                        <article class="ops-audit-item">
+                            <div>
+                                <strong>@activity.Action</strong>
+                                <span>@activity.TargetEntity</span>
+                            </div>
+                            <small>@activity.PerformedByName · @activity.Timestamp.ToString("dd MMM HH:mm")</small>
+                        </article>
+                    }
+                }
+                else
+                {
+                    <div class="ops-empty compact">No audit log rows found.</div>
+                }
+            </div>
+        </section>
     </div>
 
-    <section class="dashboard-panel dashboard-panel-table">
-        <div class="dashboard-panel-head">
-            <div>
-                <h3>Audit Activity</h3>
-                <span>Latest rows from audit logs</span>
+    <div class="ops-support-grid">
+        <section class="ops-panel compact-widget">
+            <div class="ops-panel-head tight">
+                <div>
+                    <h3>PDF Lifecycle</h3>
+                    <span>Current vs replaced records</span>
+                </div>
             </div>
-            <a asp-controller="Audit" asp-action="Index" class="dashboard-link-button">Audit Logs</a>
-        </div>
-        <div class="dashboard-table-wrap">
-            <table class="dashboard-table">
-                <thead>
-                    <tr>
-                        <th>Action</th>
-                        <th>Target</th>
-                        <th>Performed By</th>
-                        <th>Time</th>
-                        <th>Notes</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (Model.RecentActivity.Any())
-                    {
-                        @foreach (var activity in Model.RecentActivity)
-                        {
-                            <tr>
-                                <td>@activity.Action</td>
-                                <td>@activity.TargetEntity</td>
-                                <td>@activity.PerformedByName</td>
-                                <td>@activity.Timestamp.ToString("yyyy-MM-dd HH:mm")</td>
-                                <td>@activity.Notes</td>
-                            </tr>
-                        }
-                    }
-                    else
-                    {
-                        <tr><td colspan="5">No audit log rows found.</td></tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    </section>
+            <div class="ops-widget-metrics">
+                <div><span>Active</span><strong>@Model.ActivePdfSubmissions.ToString("N0")</strong></div>
+                <div><span>Replaced</span><strong>@Model.ReplacedPdfSubmissions.ToString("N0")</strong></div>
+            </div>
+            <div class="ops-track"><div style="width:@activePdfRate.ToString("0.##", culture)%"></div></div>
+        </section>
+
+        <section class="ops-panel compact-widget">
+            <div class="ops-panel-head tight">
+                <div>
+                    <h3>User Access</h3>
+                    <span>Account posture</span>
+                </div>
+                <a asp-controller="Users" asp-action="Index">Users</a>
+            </div>
+            <div class="ops-widget-metrics four">
+                <div><span>Users</span><strong>@Model.TotalUsers.ToString("N0")</strong></div>
+                <div><span>Active</span><strong>@Model.ActiveUsers.ToString("N0")</strong></div>
+                <div><span>Inactive</span><strong>@Model.InactiveUsers.ToString("N0")</strong></div>
+                <div><span>Roles</span><strong>@Model.TotalRoles.ToString("N0")</strong></div>
+            </div>
+            <div class="ops-track user"><div style="width:@activeUserRate.ToString("0.##", culture)%"></div></div>
+        </section>
+
+        <section class="ops-panel compact-widget">
+            <div class="ops-panel-head tight">
+                <div>
+                    <h3>Comparison Fields</h3>
+                    <span>Field-level quality</span>
+                </div>
+                <strong>@fieldMatchRate.ToString("0.0")%</strong>
+            </div>
+            <div class="ops-widget-metrics four">
+                <div><span>Total</span><strong>@Model.TotalComparisonFields.ToString("N0")</strong></div>
+                <div><span>Matched</span><strong>@Model.MatchedComparisonFields.ToString("N0")</strong></div>
+                <div><span>Blocking</span><strong>@Model.BlockingComparisonFields.ToString("N0")</strong></div>
+                <div><span>Pending</span><strong>@Model.PendingMismatches.ToString("N0")</strong></div>
+            </div>
+        </section>
+    </div>
 </section>
 
 <style>
-    .dashboard-workspace {
+    .ops-dashboard {
         display: flex;
         flex-direction: column;
-        gap: 16px;
-        padding: 4px 0 18px;
+        gap: 12px;
+        padding: 0 0 16px;
     }
 
-    .dashboard-header,
-    .dashboard-panel,
-    .dashboard-kpi-card {
+    .ops-top-grid,
+    .ops-health-grid,
+    .ops-data-grid,
+    .ops-support-grid,
+    .ops-kpi-grid {
+        display: grid;
+        gap: 12px;
+    }
+
+    .ops-top-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+    }
+
+    .ops-health-grid {
+        grid-template-columns: minmax(0, 1.35fr) minmax(420px, .85fr);
+    }
+
+    .ops-data-grid {
+        grid-template-columns: minmax(0, 1.55fr) minmax(320px, .65fr);
+    }
+
+    .ops-support-grid {
+        grid-template-columns: .8fr 1fr 1fr;
+    }
+
+    .ops-kpi-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .ops-summary-panel,
+    .ops-activity-card,
+    .ops-panel,
+    .ops-kpi {
         border: 1px solid #dbe5f4;
-        background: #fff;
-        box-shadow: 0 14px 34px rgba(15, 23, 42, .06);
+        border-radius: 12px;
+        background: linear-gradient(180deg, #fff 0%, #fbfdff 100%);
+        box-shadow: 0 10px 26px rgba(15, 23, 42, .055);
     }
 
-    .dashboard-header {
+    .ops-summary-panel {
         display: flex;
         justify-content: space-between;
-        gap: 24px;
-        align-items: stretch;
-        padding: 24px 26px;
-        border-radius: 16px;
-        background:
-            linear-gradient(135deg, rgba(255, 255, 255, .94) 0%, rgba(239, 246, 255, .92) 58%, rgba(232, 240, 255, .9) 100%);
+        gap: 20px;
+        align-items: center;
+        min-height: 104px;
+        padding: 16px 20px;
     }
 
-    .dashboard-eyebrow {
-        margin: 0 0 6px;
+    .ops-eyebrow {
+        margin: 0 0 3px;
         color: #2563eb;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 800;
         letter-spacing: .12em;
         text-transform: uppercase;
     }
 
-    .dashboard-header h2 {
+    .ops-summary-panel h2 {
         margin: 0;
         color: #061a40;
-        font-size: clamp(28px, 2vw, 38px);
+        font-size: clamp(24px, 2.1vw, 34px);
         line-height: 1.05;
         font-weight: 900;
     }
 
-    .dashboard-header span,
-    .dashboard-header-meta small,
-    .dashboard-panel-head span,
-    .dashboard-kpi-card small,
-    .dashboard-progress-row span,
-    .dashboard-field-grid span,
-    .dashboard-access-grid span {
-        color: #50627f;
+    .ops-summary-panel span,
+    .ops-card-heading span,
+    .ops-activity-card small,
+    .ops-panel-head span,
+    .ops-kpi small,
+    .ops-table td span,
+    .ops-validation-cell small,
+    .ops-audit-item span,
+    .ops-audit-item small,
+    .ops-widget-metrics span {
+        color: #52657f;
     }
 
-    .dashboard-header > div:first-child > span {
+    .ops-summary-panel > div:first-child > span {
         display: block;
-        max-width: 760px;
-        margin-top: 8px;
-        font-size: 14px;
-        line-height: 1.5;
+        margin-top: 5px;
+        font-size: 13px;
+        line-height: 1.35;
     }
 
-    .dashboard-header-pills {
+    .ops-summary-pills {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
-        margin-top: 18px;
+        justify-content: flex-end;
+        gap: 8px;
+        min-width: 320px;
     }
 
-    .dashboard-header-pills span {
+    .ops-summary-pills span {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
-        min-height: 34px;
-        padding: 0 12px;
+        gap: 6px;
+        min-height: 30px;
+        padding: 0 10px;
         border: 1px solid #dce7f7;
         border-radius: 999px;
-        background: rgba(255, 255, 255, .78);
+        background: #f8fbff;
         color: #33435f;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 800;
     }
 
-    .dashboard-header-pills b {
+    .ops-summary-pills b {
         color: #061a40;
-        font-size: 15px;
-        font-weight: 900;
+        font-size: 14px;
     }
 
-    .dashboard-header-meta {
+    .ops-activity-card {
         display: flex;
         flex-direction: column;
         justify-content: center;
-        min-width: 300px;
-        padding: 18px 20px;
-        border: 1px solid #d9e4f5;
-        border-radius: 14px;
-        background: rgba(255, 255, 255, .86);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .75);
+        min-height: 104px;
+        padding: 16px;
     }
 
-    .dashboard-header-meta span,
-    .dashboard-header-meta small {
-        display: block;
-        font-size: 12px;
-        font-weight: 800;
-    }
-
-    .dashboard-header-meta strong {
-        display: block;
-        margin: 7px 0;
-        color: #061a40;
-        font-size: 20px;
-        font-weight: 900;
-    }
-
-    .dashboard-kpi-grid,
-    .dashboard-insight-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 12px;
-    }
-
-    .dashboard-kpi-card {
-        position: relative;
-        overflow: hidden;
-        min-height: 132px;
-        padding: 18px 20px;
-        border-radius: 12px;
-        background: linear-gradient(180deg, #fff 0%, #fbfdff 100%);
-    }
-
-    .dashboard-kpi-card:before {
-        content: "";
-        position: absolute;
-        inset: 0 auto 0 0;
-        width: 5px;
-        background: var(--accent-color);
-    }
-
-    .dashboard-kpi-card span {
-        display: block;
-        color: #1b3357;
-        font-size: 12px;
-        font-weight: 900;
-        letter-spacing: .04em;
-        text-transform: uppercase;
-    }
-
-    .dashboard-kpi-card strong {
-        display: block;
-        margin: 14px 0 9px;
-        color: #061a40;
-        font-size: 36px;
-        line-height: 1;
-        font-weight: 900;
-    }
-
-    .accent-blue { --accent-color: #2563eb; }
-    .accent-amber { --accent-color: #d97706; }
-    .accent-green { --accent-color: #059669; }
-    .accent-red { --accent-color: #dc2626; }
-
-    .dashboard-main-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 2fr) minmax(360px, .95fr);
-        gap: 16px;
-    }
-
-    .dashboard-lower-grid {
-        display: grid;
-        grid-template-columns: minmax(360px, .85fr) minmax(0, 1.15fr);
-        gap: 16px;
-    }
-
-    .dashboard-panel {
-        min-width: 0;
-        padding: 18px 20px;
-        border-radius: 12px;
-        background: linear-gradient(180deg, #fff 0%, #fbfdff 100%);
-    }
-
-    .dashboard-panel-head {
+    .ops-card-heading,
+    .ops-panel-head {
         display: flex;
         justify-content: space-between;
-        gap: 14px;
+        gap: 12px;
         align-items: flex-start;
-        margin-bottom: 16px;
     }
 
-    .dashboard-panel-head h3 {
-        margin: 0 0 4px;
-        color: #10233f;
-        font-size: 17px;
-        font-weight: 900;
+    .ops-card-heading span {
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .05em;
     }
 
-    .dashboard-panel-head span {
-        display: block;
-        font-size: 13px;
-        line-height: 1.4;
-    }
-
-    .dashboard-panel-head strong {
-        color: #0f766e;
-        font-size: 20px;
-        font-weight: 900;
-    }
-
-    .dashboard-link-button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 38px;
-        padding: 0 14px;
-        border-radius: 9px;
-        background: #edf4ff;
+    .ops-card-heading a,
+    .ops-panel-head a {
         color: #1d4ed8;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 800;
         text-decoration: none;
         white-space: nowrap;
     }
 
-    .dashboard-trend-chart {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
-        gap: 12px;
-        min-height: 232px;
-        align-items: end;
-        padding: 18px 16px 14px;
-        border: 1px solid #e5edf7;
-        border-radius: 12px;
-        background:
-            linear-gradient(180deg, rgba(226, 235, 247, .52) 1px, transparent 1px),
-            #f8fbff;
-        background-size: 100% 46px;
+    .ops-activity-card strong {
+        margin: 8px 0 4px;
+        color: #061a40;
+        font-size: 22px;
+        line-height: 1;
+        font-weight: 900;
     }
 
-    .dashboard-trend-item {
+    .ops-activity-card small {
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .ops-kpi {
+        position: relative;
+        overflow: hidden;
+        min-height: 92px;
+        padding: 14px 16px 13px;
+        transition: transform .16s ease, box-shadow .16s ease;
+    }
+
+    .ops-kpi:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 30px rgba(15, 23, 42, .075);
+    }
+
+    .ops-kpi:before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto;
+        height: 3px;
+        background: var(--accent-color);
+        opacity: .74;
+    }
+
+    .ops-kpi span {
+        display: block;
+        color: #52657f;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+    }
+
+    .ops-kpi strong {
+        display: block;
+        margin: 8px 0 3px;
+        color: #061a40;
+        font-size: 31px;
+        line-height: 1;
+        font-weight: 900;
+    }
+
+    .accent-blue { --accent-color: #3b82f6; }
+    .accent-red { --accent-color: #ef4444; }
+    .accent-green { --accent-color: #10b981; }
+    .accent-amber { --accent-color: #f59e0b; }
+
+    .ops-panel {
+        min-width: 0;
+        padding: 14px 16px;
+    }
+
+    .ops-panel-head {
+        margin-bottom: 12px;
+    }
+
+    .ops-panel-head.tight {
+        margin-bottom: 10px;
+    }
+
+    .ops-panel-head h3 {
+        margin: 0 0 2px;
+        color: #10233f;
+        font-size: 16px;
+        line-height: 1.15;
+        font-weight: 900;
+    }
+
+    .ops-panel-head span {
+        display: block;
+        font-size: 12px;
+        line-height: 1.35;
+    }
+
+    .ops-panel-head strong {
+        color: #0f766e;
+        font-size: 18px;
+        line-height: 1;
+        font-weight: 900;
+    }
+
+    .ops-trend-chart {
         display: grid;
-        grid-template-rows: minmax(135px, 1fr) auto auto;
-        gap: 8px;
-        min-height: 190px;
+        grid-template-columns: repeat(7, minmax(48px, 1fr));
+        gap: 10px;
+        min-height: 164px;
+        align-items: end;
+        padding: 12px;
+        border: 1px solid #e5edf7;
+        border-radius: 10px;
+        background:
+            linear-gradient(180deg, rgba(226, 235, 247, .55) 1px, transparent 1px),
+            #f8fbff;
+        background-size: 100% 40px;
+    }
+
+    .ops-trend-item {
+        display: grid;
+        grid-template-rows: minmax(84px, 1fr) auto auto;
+        gap: 5px;
         align-items: end;
         text-align: center;
     }
 
-    .dashboard-trend-column {
+    .ops-trend-column {
         display: flex;
         align-items: flex-end;
         justify-content: center;
         height: 100%;
     }
 
-    .dashboard-trend-bar {
-        width: min(100%, 76px);
+    .ops-trend-bar {
+        width: min(100%, 58px);
         min-height: 4px;
-        border-radius: 8px 8px 3px 3px;
+        border-radius: 7px 7px 3px 3px;
         background: linear-gradient(180deg, #2563eb, #0f766e);
-        box-shadow: 0 10px 18px rgba(37, 99, 235, .16);
+        box-shadow: 0 8px 16px rgba(37, 99, 235, .14);
     }
 
-    .dashboard-trend-item strong {
+    .ops-trend-item strong {
         color: #10233f;
-        font-size: 14px;
+        font-size: 13px;
+        line-height: 1;
         font-weight: 900;
     }
 
-    .dashboard-trend-item span {
-        color: #50627f;
-        font-size: 12px;
+    .ops-trend-item span {
+        color: #64748b;
+        font-size: 11px;
         font-weight: 700;
     }
 
-    .dashboard-ring {
+    .ops-health-content {
+        display: grid;
+        grid-template-columns: 124px minmax(0, 1fr);
+        gap: 12px;
+        align-items: center;
+    }
+
+    .ops-ring {
         display: grid;
         place-items: center;
-        width: min(210px, 100%);
+        width: 116px;
         aspect-ratio: 1;
-        margin: 4px auto 18px;
         border-radius: 50%;
         background: conic-gradient(#0f766e calc(var(--ring-value) * 1%), #e8eef7 0);
     }
 
-    .dashboard-ring > div {
+    .ops-ring > div {
         display: grid;
         place-items: center;
         width: 72%;
@@ -565,187 +575,332 @@
         background: #fff;
     }
 
-    .dashboard-ring strong {
+    .ops-ring strong {
         color: #061a40;
-        font-size: 32px;
-        font-weight: 900;
-    }
-
-    .dashboard-ring span {
-        color: #50627f;
-        font-weight: 800;
-    }
-
-    .dashboard-split-metrics,
-    .dashboard-field-grid,
-    .dashboard-access-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-    }
-
-    .dashboard-split-metrics span,
-    .dashboard-field-grid div,
-    .dashboard-access-grid div {
-        padding: 13px;
-        border: 1px solid #e4ebf6;
-        border-radius: 10px;
-        background: #f9fbff;
-    }
-
-    .dashboard-split-metrics b,
-    .dashboard-field-grid strong,
-    .dashboard-access-grid strong {
-        display: block;
-        margin-top: 4px;
-        color: #061a40;
-        font-size: 22px;
+        font-size: 24px;
         line-height: 1;
         font-weight: 900;
     }
 
-    .dashboard-progress-stack,
-    .dashboard-status-list {
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
-    }
-
-    .dashboard-progress-row,
-    .dashboard-status-row > div:first-child {
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        color: #10233f;
+    .ops-ring span {
+        color: #52657f;
+        font-size: 11px;
         font-weight: 800;
     }
 
-    .dashboard-track {
-        height: 10px;
+    .ops-status-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .ops-status-mini {
+        min-width: 0;
+        padding: 9px;
+        border: 1px solid #e4ebf6;
+        border-radius: 9px;
+        background: #f9fbff;
+    }
+
+    .ops-status-mini > div:first-child {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 7px;
+    }
+
+    .ops-status-mini span {
+        min-width: 0;
+        overflow: hidden;
+        color: #52657f;
+        font-size: 11px;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .ops-status-mini b {
+        color: #061a40;
+        font-size: 15px;
+        line-height: 1;
+        font-weight: 900;
+    }
+
+    .ops-track {
+        height: 7px;
         overflow: hidden;
         border-radius: 999px;
         background: #e8eef7;
     }
 
-    .dashboard-track div {
+    .ops-track div {
         height: 100%;
         border-radius: inherit;
-        background: #2563eb;
-        box-shadow: 0 6px 12px rgba(37, 99, 235, .12);
+        background: linear-gradient(90deg, #2563eb, #0f766e);
     }
 
-    .dashboard-track.muted div {
-        background: #64748b;
+    .ops-track.user div {
+        background: linear-gradient(90deg, #6366f1, #2563eb);
     }
 
-    .dashboard-track.user div {
-        background: #0f766e;
-    }
-
-    .dashboard-panel-table {
+    .ops-table-wrap {
         overflow: hidden;
+        border: 1px solid #dbe5f4;
+        border-radius: 10px;
     }
 
-    .dashboard-table-wrap {
-        overflow: auto;
-        border: 1px solid #e3ebf7;
-        border-radius: 12px;
-    }
-
-    .dashboard-table {
+    .ops-table {
         width: 100%;
-        min-width: 680px;
-        border-collapse: collapse;
-        color: #10233f;
-        font-size: 14px;
+        border-collapse: separate;
+        border-spacing: 0;
+        table-layout: fixed;
     }
 
-    .dashboard-table th {
-        background: #f4f7fb;
-        color: #31435e;
-        font-size: 12px;
-        font-weight: 900;
+    .ops-table th,
+    .ops-table td {
+        padding: 9px 12px;
+        border-bottom: 1px solid #e8eef7;
         text-align: left;
+        vertical-align: middle;
+    }
+
+    .ops-table th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: #f6f9fd;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .05em;
         text-transform: uppercase;
     }
 
-    .dashboard-table th,
-    .dashboard-table td {
-        padding: 13px 14px;
-        border-bottom: 1px solid #edf2f8;
-        vertical-align: top;
+    .ops-table tbody tr {
+        transition: background .16s ease;
     }
 
-    .dashboard-table tbody tr:hover {
+    .ops-table tbody tr:hover {
         background: #f8fbff;
     }
 
-    .dashboard-table tr:last-child td {
-        border-bottom: 0;
+    .ops-table td {
+        color: #061a40;
+        font-size: 13px;
+        font-weight: 700;
     }
 
-    .dashboard-pill {
+    .ops-table td:first-child strong,
+    .ops-table td:first-child span {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .ops-table td:first-child span {
+        margin-top: 2px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .ops-table th:nth-child(1) { width: 27%; }
+    .ops-table th:nth-child(2) { width: 21%; }
+    .ops-table th:nth-child(3) { width: 20%; }
+    .ops-table th:nth-child(4) { width: 16%; }
+    .ops-table th:nth-child(5) { width: 16%; }
+
+    .ops-validation-cell {
+        display: flex;
+        gap: 7px;
+        align-items: center;
+        min-width: 0;
+    }
+
+    .ops-validation-cell small {
+        overflow: hidden;
+        font-size: 11px;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .ops-pill {
         display: inline-flex;
         align-items: center;
-        min-height: 26px;
-        padding: 0 10px;
+        justify-content: center;
+        min-height: 24px;
+        padding: 0 8px;
+        border: 1px solid transparent;
         border-radius: 999px;
         font-size: 12px;
         font-weight: 900;
+        white-space: nowrap;
     }
 
-    .dashboard-pill.success {
-        border: 1px solid #bbf7d0;
+    .ops-pill.success {
+        border-color: #bbf7d0;
         background: #ecfdf5;
         color: #047857;
     }
 
-    .dashboard-pill.muted {
-        border: 1px solid #dbe3ef;
-        background: #f3f6fb;
-        color: #475569;
+    .ops-pill.warning {
+        border-color: #fed7aa;
+        background: #fff7ed;
+        color: #c2410c;
     }
 
-    .dashboard-empty {
-        padding: 18px;
-        border: 1px dashed #cbd8ea;
-        border-radius: 12px;
-        color: #50627f;
+    .ops-action-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        padding: 0 12px;
+        border: 1px solid #d8e3f2;
+        border-radius: 8px;
         background: #f8fbff;
+        color: #10233f;
+        font-size: 12px;
+        font-weight: 900;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .ops-audit-list {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        max-height: 244px;
+        overflow: hidden;
+    }
+
+    .ops-audit-item {
+        padding: 9px 10px;
+        border: 1px solid #e4ebf6;
+        border-radius: 9px;
+        background: #f9fbff;
+    }
+
+    .ops-audit-item strong,
+    .ops-audit-item span,
+    .ops-audit-item small {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .ops-audit-item strong {
+        color: #061a40;
+        font-size: 13px;
+        line-height: 1.2;
+        font-weight: 900;
+    }
+
+    .ops-audit-item span,
+    .ops-audit-item small {
+        margin-top: 2px;
+        font-size: 11px;
         font-weight: 700;
     }
 
-    @@media (max-width: 1400px) {
-        .dashboard-kpi-grid,
-        .dashboard-insight-grid {
+    .compact-widget {
+        padding: 12px;
+    }
+
+    .ops-widget-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .ops-widget-metrics.four {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .ops-widget-metrics div {
+        min-width: 0;
+        padding: 8px;
+        border: 1px solid #e4ebf6;
+        border-radius: 9px;
+        background: #f9fbff;
+    }
+
+    .ops-widget-metrics span {
+        display: block;
+        overflow: hidden;
+        font-size: 11px;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .ops-widget-metrics strong {
+        display: block;
+        margin-top: 3px;
+        color: #061a40;
+        font-size: 20px;
+        line-height: 1;
+        font-weight: 900;
+    }
+
+    .ops-empty {
+        padding: 20px;
+        border: 1px dashed #cbd7e8;
+        border-radius: 10px;
+        background: #f8fbff;
+        color: #52657f;
+        font-weight: 800;
+        text-align: center;
+    }
+
+    .ops-empty.compact {
+        padding: 12px;
+        font-size: 12px;
+    }
+
+    @@media (max-width: 1200px) {
+        .ops-top-grid,
+        .ops-health-grid,
+        .ops-data-grid,
+        .ops-support-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .ops-kpi-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
     }
 
-    @@media (max-width: 1100px) {
-        .dashboard-header,
-        .dashboard-main-grid,
-        .dashboard-lower-grid {
-            grid-template-columns: 1fr;
+    @@media (max-width: 760px) {
+        .ops-summary-panel {
+            align-items: flex-start;
             flex-direction: column;
         }
 
-        .dashboard-header-meta {
+        .ops-summary-pills {
+            justify-content: flex-start;
             min-width: 0;
         }
-    }
 
-    @@media (max-width: 720px) {
-        .dashboard-kpi-grid,
-        .dashboard-insight-grid,
-        .dashboard-split-metrics,
-        .dashboard-field-grid,
-        .dashboard-access-grid {
+        .ops-kpi-grid,
+        .ops-status-grid,
+        .ops-widget-metrics.four {
             grid-template-columns: 1fr;
         }
 
-        .dashboard-panel-head {
-            flex-direction: column;
+        .ops-health-content {
+            grid-template-columns: 1fr;
+        }
+
+        .ops-table-wrap {
+            overflow-x: auto;
         }
     }
 </style>

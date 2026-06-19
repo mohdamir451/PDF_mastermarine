@@ -755,7 +755,19 @@ public class ComparisonJobsController(
 
             for (var i = 0; i < headers.Count; i++)
             {
-                ws.Cell(rowIndex, i + 1).Value = ToSafeExcelText(ResolveApiValueForHeader(headers[i], rowLookup));
+                var header = headers[i];
+                var value = ResolveApiValueForHeader(header, rowLookup);
+                if (IsContainerDataSheet(sheetName) && IsContainerDataWeightSwapHeader(header))
+                {
+                    value = ResolveSwappedContainerDataWeightValue(header, rowLookup);
+                }
+
+                var cell = ws.Cell(rowIndex, i + 1);
+                cell.Value = ToSafeExcelText(value);
+                if (IsContainerDataSheet(sheetName) && IsContainerDataWeightSwapHeader(header))
+                {
+                    ApplyContainerDataSwapHighlight(cell);
+                }
             }
 
             rowIndex++;
@@ -806,6 +818,42 @@ public class ComparisonJobsController(
         }
 
         ws.SheetView.FreezeRows(1);
+    }
+
+    private static bool IsContainerDataSheet(string sheetName)
+        => string.Equals(sheetName, "Container Data", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsContainerDataWeightSwapHeader(string header)
+    {
+        var key = NormalizeToken(header);
+        return key == NormalizeToken("CARGO GROSS WEIGHT (KGS)") ||
+               key == NormalizeToken("CONTAINER WEIGHT (VGM/Gross) (KGS)");
+    }
+
+    private static string ResolveSwappedContainerDataWeightValue(
+        string header,
+        IReadOnlyDictionary<string, string> rowLookup)
+    {
+        var key = NormalizeToken(header);
+        if (key == NormalizeToken("CARGO GROSS WEIGHT (KGS)"))
+        {
+            return ResolveApiValueForHeader("CONTAINER WEIGHT (VGM/Gross) (KGS)", rowLookup);
+        }
+
+        if (key == NormalizeToken("CONTAINER WEIGHT (VGM/Gross) (KGS)"))
+        {
+            return ResolveApiValueForHeader("CARGO GROSS WEIGHT (KGS)", rowLookup);
+        }
+
+        return ResolveApiValueForHeader(header, rowLookup);
+    }
+
+    private static void ApplyContainerDataSwapHighlight(IXLCell cell)
+    {
+        cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#FDE2E2");
+        cell.Style.Font.FontColor = XLColor.FromHtml("#B91C1C");
+        cell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        cell.Style.Border.OutsideBorderColor = XLColor.FromHtml("#DC2626");
     }
 
     private static string ResolveApiValueForHeader(string header, IReadOnlyDictionary<string, string> rowLookup)

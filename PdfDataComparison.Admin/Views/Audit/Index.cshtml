@@ -3,25 +3,50 @@
     ViewData["Title"] = "Audit Logs";
     ViewData["Subtitle"] = "Chronological system activity for compliance and traceability.";
     var auditTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+    var uniqueActors = Model.Select(x => x.PerformedByName).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().Count();
+    var uniqueActions = Model.Select(x => x.Action).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().Count();
+    var auditToday = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, auditTimeZone).Date;
+    var todayLogs = Model.Count(x => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(x.Timestamp, DateTimeKind.Utc), auditTimeZone).Date == auditToday);
+    var latestAuditLog = Model.OrderByDescending(x => x.Timestamp).FirstOrDefault();
 }
 
-<section class="page-hero">
-    <div>
-        <h2>Audit Logs</h2>
-        <p>Review who performed what action and when across the workspace.</p>
-    </div>
-    <div class="table-tools">
-        <a asp-action="DownloadExcel" class="btn btn-primary">Download Excel</a>
-        <span class="badge neutral">Last @Model.Count records</span>
-    </div>
-</section>
+<section class="admin-page-shell">
+    <header class="admin-page-hero">
+        <div class="admin-title-block">
+            <h2>Audit Logs</h2>
+            <p>Review who performed what action and when across the workspace.</p>
+        </div>
+        <div class="admin-header-actions">
+            <span class="admin-record-pill">Last @Model.Count records</span>
+            <a asp-action="DownloadExcel" class="btn btn-primary">Download Excel</a>
+        </div>
+    </header>
 
-<section class="card">
-    <div class="table-tools">
+    <section class="admin-panel">
+    <div class="admin-summary-grid" aria-label="Audit log summary">
+        <div class="admin-summary-card metric-active"><strong>@Model.Count</strong><span>Loaded Events</span></div>
+        <div class="admin-summary-card metric-complete"><strong>@uniqueActors</strong><span>Actors</span></div>
+        <div class="admin-summary-card metric-neutral"><strong>@uniqueActions</strong><span>Action Types</span></div>
+        <div class="admin-summary-card metric-date"><strong>@(latestAuditLog == null ? "-" : TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(latestAuditLog.Timestamp, DateTimeKind.Utc), auditTimeZone).ToString("dd MMM"))</strong><span>Latest Event</span></div>
+    </div>
+
+    <div class="admin-toolbar">
+        <div class="admin-filter-group">
         <label for="auditQuickFilter" class="sr-only">Quick filter loaded rows</label>
-        <input id="auditQuickFilter" class="table-quick-filter" type="search" placeholder="Quick filter visible rows" data-table-search data-table-target="auditTable" data-table-count-target="auditVisibleCount" />
+        <input id="auditQuickFilter" class="table-quick-filter" type="search" placeholder="Search action, actor, target, notes..." />
         <span class="badge neutral visible-count" id="auditVisibleCount" aria-live="polite">0/0</span>
+        </div>
+        <div class="admin-table-tools">
+        <span class="badge neutral">@todayLogs today</span>
+        <label for="auditPageSize" class="sr-only">Rows per page</label>
+        <select id="auditPageSize" class="admin-page-size" aria-label="Rows per page">
+            <option value="10">10 rows</option>
+            <option value="25" selected>25 rows</option>
+            <option value="50">50 rows</option>
+            <option value="100">100 rows</option>
+        </select>
         <button type="button" class="btn btn-ghost" data-density-target="auditTableWrap" aria-pressed="false">Compact Rows</button>
+        </div>
     </div>
 
     <div class="loading-panel" data-loading-panel>
@@ -32,8 +57,8 @@
     <div class="data-panel" data-data-panel hidden>
         @if (Model.Any())
         {
-            <div class="table-wrap" id="auditTableWrap">
-                <table class="table table-responsive-card" id="auditTable" data-sortable>
+            <div class="table-wrap admin-table-wrap" id="auditTableWrap">
+                <table class="table table-responsive-card admin-data-table audit-log-table" id="auditTable" data-sortable>
                 <thead>
                 <tr>
                     <th><button type="button" class="sort-btn" data-sort-col="0">Action</button></th>
@@ -48,16 +73,21 @@
                 @foreach (var log in Model)
                 {
                     <tr>
-                        <td data-label="Action"><span class="badge neutral">@log.Action</span></td>
-                        <td data-label="Performed By">@log.PerformedByName</td>
-                        <td data-label="Target">@log.TargetEntity</td>
+                        <td data-label="Action"><span class="badge neutral admin-action-badge">@log.Action</span></td>
+                        <td data-label="Performed By" class="admin-truncate" title="@log.PerformedByName">@log.PerformedByName</td>
+                        <td data-label="Target" class="admin-truncate" title="@log.TargetEntity">@log.TargetEntity</td>
                         <td data-label="Timestamp (IST)">@TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(log.Timestamp, DateTimeKind.Utc), auditTimeZone).ToString("yyyy-MM-dd HH:mm:ss")</td>
                         <td data-label="UTC">@log.Timestamp.ToString("u")</td>
-                        <td data-label="Notes">@(string.IsNullOrWhiteSpace(log.Notes) ? "-" : log.Notes)</td>
+                        <td data-label="Notes" class="admin-truncate" title="@log.Notes">@(string.IsNullOrWhiteSpace(log.Notes) ? "-" : log.Notes)</td>
                     </tr>
                 }
                 </tbody>
             </table>
+        </div>
+        <div class="admin-pagination" aria-label="Audit log pages">
+            <button type="button" class="btn btn-ghost btn-small" id="auditPrevPageBtn">Previous</button>
+            <span class="badge neutral" id="auditPageInfo">Page 1 of 1</span>
+            <button type="button" class="btn btn-ghost btn-small" id="auditNextPageBtn">Next</button>
         </div>
         }
         else
@@ -72,4 +102,46 @@
             </div>
         }
     </div>
+    </section>
 </section>
+
+<script>
+(() => {
+    const search = document.getElementById('auditQuickFilter');
+    const pageSize = document.getElementById('auditPageSize');
+    const prev = document.getElementById('auditPrevPageBtn');
+    const next = document.getElementById('auditNextPageBtn');
+    const pageInfo = document.getElementById('auditPageInfo');
+    const visibleCount = document.getElementById('auditVisibleCount');
+    const rows = Array.from(document.querySelectorAll('#auditTable tbody tr'));
+    let currentPage = 1;
+
+    if (!rows.length) return;
+
+    const render = (resetPage = false) => {
+        if (resetPage) currentPage = 1;
+        const query = (search?.value || '').trim().toLowerCase();
+        const size = Number.parseInt(pageSize?.value || '25', 10) || 25;
+        const matched = rows.filter((row) => !query || row.innerText.toLowerCase().includes(query));
+        const totalPages = Math.max(1, Math.ceil(matched.length / size));
+        currentPage = Math.min(Math.max(currentPage, 1), totalPages);
+        const start = (currentPage - 1) * size;
+        const visibleSet = new Set(matched.slice(start, start + size));
+
+        rows.forEach((row) => {
+            row.style.display = visibleSet.has(row) ? '' : 'none';
+        });
+
+        if (visibleCount) visibleCount.textContent = `${matched.length}/${rows.length}`;
+        if (pageInfo) pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+        if (prev) prev.disabled = currentPage <= 1;
+        if (next) next.disabled = currentPage >= totalPages;
+    };
+
+    search?.addEventListener('input', () => render(true));
+    pageSize?.addEventListener('change', () => render(true));
+    prev?.addEventListener('click', () => { currentPage -= 1; render(); });
+    next?.addEventListener('click', () => { currentPage += 1; render(); });
+    render(true);
+})();
+</script>

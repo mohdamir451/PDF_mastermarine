@@ -1,37 +1,486 @@
 @model RoleFormVm
 @{
     ViewData["Title"] = "Create Role";
-    ViewData["Subtitle"] = "Define role identity and purpose.";
+    ViewData["Subtitle"] = "Create a role and assign permissions for controlled access.";
 }
 
-<section class="page-hero">
-    <div>
-        <h2>Create Role</h2>
-        <p>Establish a new role before assigning page permissions.</p>
+<section class="role-create-shell" data-role-create-page>
+    <nav class="role-breadcrumb" aria-label="Breadcrumb">
+        <a asp-controller="Dashboard" asp-action="Index">Administration</a>
+        <span aria-hidden="true">/</span>
+        <a asp-action="Index">Roles</a>
+        <span aria-hidden="true">/</span>
+        <strong>Create Role</strong>
+    </nav>
+
+    <header class="role-create-hero">
+        <div class="role-title-lock" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+                <path d="M12 2.25 4.75 5.4v5.35c0 4.7 3.02 8.9 7.25 10.35 4.23-1.45 7.25-5.65 7.25-10.35V5.4L12 2.25Zm0 2.18 5.25 2.28v4.04c0 3.55-2.1 6.82-5.25 8.22-3.15-1.4-5.25-4.67-5.25-8.22V6.71L12 4.43Zm0 4.32a2.25 2.25 0 0 0-2.25 2.25v1.25h-.5v4.5h5.5v-4.5h-.5V11A2.25 2.25 0 0 0 12 8.75Zm0 1.5c.41 0 .75.34.75.75v1.25h-1.5V11c0-.41.34-.75.75-.75Z" />
+            </svg>
+        </div>
+        <div>
+            <h2>Create Role</h2>
+            <p>Create a role and assign permissions for controlled access.</p>
+        </div>
+    </header>
+
+    <div class="role-create-layout">
+        <section class="role-form-panel" aria-labelledby="roleInfoTitle">
+            <div class="role-section-head">
+                <div>
+                    <h3 id="roleInfoTitle">Role Information</h3>
+                    <p>Define the administrative identity before permission assignment.</p>
+                </div>
+                <span class="role-draft-pill">Draft</span>
+            </div>
+
+            <form asp-action="Create" method="post" class="role-create-form" novalidate data-clear-draft-on-submit>
+                @Html.AntiForgeryToken()
+                <div asp-validation-summary="ModelOnly" class="role-validation-summary"></div>
+
+                <div class="role-field-group">
+                    <label asp-for="Name" class="required">Role Name</label>
+                    <input asp-for="Name" placeholder="Operations Administrator" autocomplete="off" data-role-name-input />
+                    <span class="role-field-help">Unique role name visible to administrators.</span>
+                    <span asp-validation-for="Name" class="role-field-error"></span>
+                </div>
+
+                <div class="role-field-group">
+                    <label asp-for="Description">Description</label>
+                    <textarea asp-for="Description" rows="4" placeholder="Full operational access" data-role-description-input></textarea>
+                    <span class="role-field-help">Describe the purpose and responsibilities of this role.</span>
+                    <span asp-validation-for="Description" class="role-field-error"></span>
+                </div>
+
+                <div class="role-action-area">
+                    <button class="btn btn-primary" type="submit">Create Role</button>
+                    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+                    <a asp-action="Index" class="btn btn-ghost">Back to Roles</a>
+                </div>
+            </form>
+        </section>
+
+        <aside class="role-side-panel" aria-label="Role creation context">
+            <section class="role-preview-card" aria-labelledby="rolePreviewTitle">
+                <div class="role-side-head">
+                    <h3 id="rolePreviewTitle">Role Preview</h3>
+                    <span class="role-status-dot">Draft</span>
+                </div>
+                <dl class="role-preview-list">
+                    <div>
+                        <dt>Role Name</dt>
+                        <dd id="rolePreviewName">Operations Administrator</dd>
+                    </div>
+                    <div>
+                        <dt>Description</dt>
+                        <dd id="rolePreviewDescription">Full operational access</dd>
+                    </div>
+                    <div>
+                        <dt>Permissions</dt>
+                        <dd>Not configured</dd>
+                    </div>
+                    <div>
+                        <dt>Status</dt>
+                        <dd><span class="role-draft-pill">Draft</span></dd>
+                    </div>
+                </dl>
+            </section>
+
+            <section class="role-guidelines-card" aria-labelledby="roleGuidelinesTitle">
+                <h3 id="roleGuidelinesTitle">Role Creation Guidelines</h3>
+                <ul>
+                    <li>Use descriptive role names.</li>
+                    <li>Follow least-privilege principles.</li>
+                    <li>Avoid duplicate administrative roles.</li>
+                    <li>Review permissions before activation.</li>
+                </ul>
+            </section>
+        </aside>
     </div>
-    <a asp-action="Index" class="btn btn-secondary">Back to Roles</a>
 </section>
 
-<section class="card form-card">
-    <form asp-action="Create" method="post">
-        @Html.AntiForgeryToken()
-        <div asp-validation-summary="ModelOnly" class="field-validation-error"></div>
-        <div class="form-grid">
-        <div class="form-group">
-            <label asp-for="Name" class="required">Role Name</label>
-            <input asp-for="Name" placeholder="Operations Admin" />
-            <span asp-validation-for="Name" class="field-validation-error"></span>
-            <span class="form-help">Use a clear and unique name for admin readability.</span>
-        </div>
-        <div class="form-group">
-            <label asp-for="Description">Description</label>
-            <input asp-for="Description" placeholder="Full operational access" />
-        </div>
-        </div>
+<style>
+    .role-create-shell {
+        --role-border: #d9e2ef;
+        --role-muted: #667085;
+        --role-strong: #0f172a;
+        --role-soft: #f7f9fc;
+        display: grid;
+        gap: 12px;
+        max-width: 1100px;
+    }
 
-        <div class="toolbar">
-            <button class="btn btn-primary" type="submit">Create Role</button>
-            <a asp-action="Index" class="btn btn-secondary">Cancel</a>
-        </div>
-    </form>
-</section>
+    .role-create-shell ~ .app-footer,
+    body:has(.role-create-shell) .app-footer {
+        opacity: .55;
+        padding-block: 10px;
+        font-size: 11px;
+    }
+
+    .role-breadcrumb {
+        align-items: center;
+        color: #64748b;
+        display: flex;
+        flex-wrap: wrap;
+        font-size: 12px;
+        font-weight: 750;
+        gap: 8px;
+        min-height: 24px;
+    }
+
+    .role-breadcrumb a {
+        color: #64748b;
+        text-decoration: none;
+    }
+
+    .role-breadcrumb a:hover,
+    .role-breadcrumb strong {
+        color: #1d4ed8;
+    }
+
+    .role-create-hero {
+        align-items: center;
+        background: linear-gradient(180deg, #fff, #fbfdff);
+        border: 1px solid var(--role-border);
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, .045);
+        display: flex;
+        gap: 12px;
+        min-height: 76px;
+        padding: 16px;
+    }
+
+    .role-title-lock {
+        align-items: center;
+        background: #eef4ff;
+        border: 1px solid #cfe0ff;
+        border-radius: 12px;
+        color: #2563eb;
+        display: inline-flex;
+        flex: 0 0 auto;
+        height: 44px;
+        justify-content: center;
+        width: 44px;
+    }
+
+    .role-title-lock svg {
+        fill: currentColor;
+        height: 24px;
+        width: 24px;
+    }
+
+    .role-create-hero h2 {
+        color: var(--role-strong);
+        font-size: clamp(26px, 2.5vw, 36px);
+        font-weight: 900;
+        letter-spacing: 0;
+        line-height: 1;
+    }
+
+    .role-create-hero p {
+        color: var(--role-muted);
+        font-size: 13px;
+        line-height: 1.4;
+        margin-top: 5px;
+    }
+
+    .role-create-layout {
+        align-items: start;
+        display: grid;
+        gap: 16px;
+        grid-template-columns: minmax(0, 1fr) 320px;
+    }
+
+    .role-form-panel,
+    .role-preview-card,
+    .role-guidelines-card {
+        background: #fff;
+        border: 1px solid var(--role-border);
+        border-radius: 12px;
+        box-shadow: 0 10px 28px rgba(15, 23, 42, .055);
+    }
+
+    .role-form-panel {
+        overflow: hidden;
+    }
+
+    .role-section-head,
+    .role-side-head {
+        align-items: center;
+        border-bottom: 1px solid var(--role-border);
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+    }
+
+    .role-section-head h3,
+    .role-side-head h3,
+    .role-guidelines-card h3 {
+        color: var(--role-strong);
+        font-size: 15px;
+        font-weight: 850;
+        line-height: 1.2;
+    }
+
+    .role-section-head p {
+        color: var(--role-muted);
+        font-size: 12px;
+        margin-top: 3px;
+    }
+
+    .role-draft-pill,
+    .role-status-dot {
+        align-items: center;
+        background: #f8fafc;
+        border: 1px solid #dbe5f1;
+        border-radius: 999px;
+        color: #475569;
+        display: inline-flex;
+        font-size: 11px;
+        font-weight: 850;
+        min-height: 24px;
+        padding: 0 8px;
+        white-space: nowrap;
+    }
+
+    .role-status-dot::before {
+        background: #f59e0b;
+        border-radius: 999px;
+        content: "";
+        height: 7px;
+        margin-right: 6px;
+        width: 7px;
+    }
+
+    .role-create-form {
+        display: grid;
+        gap: 16px;
+        padding: 16px;
+    }
+
+    .role-validation-summary {
+        border: 1px solid #fecaca;
+        border-radius: 10px;
+        background: #fff7f7;
+        color: #991b1b;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 10px 12px;
+    }
+
+    .role-validation-summary:empty {
+        display: none;
+    }
+
+    .role-field-group {
+        display: grid;
+        gap: 6px;
+    }
+
+    .role-field-group label {
+        color: #344054;
+        font-size: 12px;
+        font-weight: 850;
+    }
+
+    .role-field-group input,
+    .role-field-group textarea {
+        border: 1px solid var(--role-border);
+        border-radius: 10px;
+        color: var(--role-strong);
+        font: inherit;
+        font-size: 13px;
+        min-height: 38px;
+        padding: 9px 11px;
+        transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+        width: 100%;
+    }
+
+    .role-field-group textarea {
+        min-height: 96px;
+        resize: vertical;
+    }
+
+    .role-field-group input:hover,
+    .role-field-group textarea:hover {
+        border-color: #c7d3e3;
+        background: #fbfdff;
+    }
+
+    .role-field-group input:focus,
+    .role-field-group textarea:focus {
+        outline: 0;
+        border-color: #93c5fd;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, .13);
+    }
+
+    .role-field-group.is-touched .input-validation-error {
+        border-color: #fca5a5;
+        background: #fffafa;
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, .08);
+    }
+
+    .role-field-help {
+        color: var(--role-muted);
+        font-size: 12px;
+    }
+
+    .role-field-error {
+        align-items: center;
+        color: #b42318;
+        display: none;
+        font-size: 12px;
+        font-weight: 750;
+        gap: 6px;
+    }
+
+    .role-field-group.is-touched .role-field-error:not(:empty),
+    .role-create-form.was-submitted .role-field-error:not(:empty) {
+        display: flex;
+    }
+
+    .role-field-error:not(:empty)::before {
+        content: "!";
+        align-items: center;
+        background: #fee2e2;
+        border-radius: 999px;
+        color: #991b1b;
+        display: inline-flex;
+        font-size: 10px;
+        font-weight: 900;
+        height: 16px;
+        justify-content: center;
+        width: 16px;
+    }
+
+    .role-action-area {
+        align-items: center;
+        border-top: 1px solid #edf2f7;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-start;
+        padding-top: 8px;
+    }
+
+    .role-action-area .btn {
+        min-height: 36px;
+    }
+
+    .role-side-panel {
+        display: grid;
+        gap: 12px;
+        position: sticky;
+        top: 86px;
+    }
+
+    .role-preview-list {
+        display: grid;
+        gap: 0;
+        margin: 0;
+        padding: 6px 16px 14px;
+    }
+
+    .role-preview-list div {
+        border-bottom: 1px solid #edf2f7;
+        display: grid;
+        gap: 3px;
+        padding: 10px 0;
+    }
+
+    .role-preview-list div:last-child {
+        border-bottom: 0;
+    }
+
+    .role-preview-list dt {
+        color: var(--role-muted);
+        font-size: 11px;
+        font-weight: 850;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+    }
+
+    .role-preview-list dd {
+        color: var(--role-strong);
+        font-size: 13px;
+        font-weight: 750;
+        margin: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .role-guidelines-card {
+        padding: 14px 16px;
+    }
+
+    .role-guidelines-card ul {
+        color: #475569;
+        display: grid;
+        gap: 8px;
+        font-size: 13px;
+        line-height: 1.4;
+        margin: 10px 0 0;
+        padding-left: 18px;
+    }
+
+    @@media (max-width: 980px) {
+        .role-create-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .role-side-panel {
+            position: static;
+        }
+    }
+
+    @@media (max-width: 640px) {
+        .role-create-hero,
+        .role-section-head,
+        .role-side-head,
+        .role-action-area {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .role-action-area .btn {
+            width: 100%;
+        }
+    }
+</style>
+
+<script>
+(() => {
+    const shell = document.querySelector('[data-role-create-page]');
+    if (!shell) return;
+
+    const form = shell.querySelector('.role-create-form');
+    const nameInput = shell.querySelector('[data-role-name-input]');
+    const descriptionInput = shell.querySelector('[data-role-description-input]');
+    const previewName = document.getElementById('rolePreviewName');
+    const previewDescription = document.getElementById('rolePreviewDescription');
+
+    const updatePreview = () => {
+        if (previewName) previewName.textContent = nameInput?.value.trim() || 'Operations Administrator';
+        if (previewDescription) previewDescription.textContent = descriptionInput?.value.trim() || 'Full operational access';
+    };
+
+    [nameInput, descriptionInput].forEach((field) => {
+        if (!field) return;
+        field.addEventListener('input', updatePreview);
+        field.addEventListener('blur', () => {
+            const group = field.closest('.role-field-group');
+            if (group) group.classList.add('is-touched');
+        });
+    });
+
+    if (form) {
+        form.addEventListener('submit', () => {
+            form.classList.add('was-submitted');
+            shell.querySelectorAll('.role-field-group').forEach((group) => group.classList.add('is-touched'));
+        });
+    }
+
+    updatePreview();
+})();
+</script>

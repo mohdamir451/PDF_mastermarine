@@ -6,6 +6,17 @@
     var pages = ViewBag.Pages as List<PagePermission>;
     var selectedRoleId = ViewBag.SelectedRoleId as string;
     var rolePermissions = ViewBag.RolePermissions as List<RolePermission> ?? new List<RolePermission>();
+
+    static string EffectiveOperation(string permissionKey)
+    {
+        if (permissionKey.EndsWith(".Submit", StringComparison.OrdinalIgnoreCase)) return "Submit";
+        if (permissionKey.EndsWith(".Export", StringComparison.OrdinalIgnoreCase)) return "Export";
+        if (permissionKey.EndsWith(".Edit", StringComparison.OrdinalIgnoreCase)) return "Edit";
+        if (permissionKey.EndsWith(".Manage", StringComparison.OrdinalIgnoreCase)) return "Edit";
+        if (permissionKey.EndsWith(".Create", StringComparison.OrdinalIgnoreCase)) return "Create";
+        if (permissionKey.EndsWith(".Delete", StringComparison.OrdinalIgnoreCase)) return "Delete";
+        return "View";
+    }
 }
 
 <section class="page-hero">
@@ -14,6 +25,45 @@
         <p>Inspect page-level access coverage and operational controls for each role.</p>
     </div>
 </section>
+
+<style>
+    .permission-operation-pill {
+        align-items: center;
+        background: #eef4ff;
+        border: 1px solid #cfe0ff;
+        border-radius: 999px;
+        color: #1e3a8a;
+        display: inline-flex;
+        font-size: 10.5px;
+        font-weight: 850;
+        margin-left: 8px;
+        min-height: 22px;
+        padding: 0 8px;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .permission-op {
+        text-align: center;
+    }
+
+    .permission-op-na {
+        background: #f8fafc;
+        opacity: .55;
+    }
+
+    .permission-op-na input {
+        cursor: not-allowed;
+    }
+
+    .permission-op-active {
+        background: #fbfdff;
+    }
+
+    .permission-op-active input {
+        cursor: pointer;
+    }
+</style>
 
 <section class="card">
     @if (TempData["SuccessMessage"] is string successMessage)
@@ -72,75 +122,101 @@
                     {
                         var permissionPage = pages[i];
                         var permissions = rolePermissions.FirstOrDefault(x => x.PagePermissionId == permissionPage.Id);
+                        var effectiveOperation = EffectiveOperation(permissionPage.PermissionKey);
                         <tr>
                             <td class="permission-page-cell">
                                 <strong>@permissionPage.PageName</strong>
+                                <span class="permission-operation-pill">@effectiveOperation</span>
                                 <input type="hidden" name="permissions[@i].PagePermissionId" value="@permissionPage.Id" />
                             </td>
                             <td>@permissionPage.PermissionKey</td>
-                            <td>
-                                @if (permissions?.CanView == true)
+                            <td class="permission-op @(effectiveOperation == "View" ? "permission-op-active" : "permission-op-na")">
+                                @if (effectiveOperation == "View" && permissions?.CanView == true)
                                 {
                                     <input type="checkbox" name="permissions[@i].CanView" value="true" checked />
                                 }
-                                else
+                                else if (effectiveOperation == "View")
                                 {
                                     <input type="checkbox" name="permissions[@i].CanView" value="true" />
                                 }
+                                else
+                                {
+                                    <input type="checkbox" disabled aria-label="View is not applicable for @permissionPage.DisplayName" />
+                                }
                                 <input type="hidden" name="permissions[@i].CanView" value="false" />
                             </td>
-                            <td>
-                                @if (permissions?.CanCreate == true)
+                            <td class="permission-op @(effectiveOperation == "Create" ? "permission-op-active" : "permission-op-na")">
+                                @if (effectiveOperation == "Create" && permissions?.CanCreate == true)
                                 {
                                     <input type="checkbox" name="permissions[@i].CanCreate" value="true" checked />
                                 }
-                                else
+                                else if (effectiveOperation == "Create")
                                 {
                                     <input type="checkbox" name="permissions[@i].CanCreate" value="true" />
                                 }
+                                else
+                                {
+                                    <input type="checkbox" disabled aria-label="Create is not applicable for @permissionPage.DisplayName" />
+                                }
                                 <input type="hidden" name="permissions[@i].CanCreate" value="false" />
                             </td>
-                            <td>
-                                @if (permissions?.CanEdit == true)
+                            <td class="permission-op @(effectiveOperation == "Edit" ? "permission-op-active" : "permission-op-na")">
+                                @if (effectiveOperation == "Edit" && permissions?.CanEdit == true)
                                 {
                                     <input type="checkbox" name="permissions[@i].CanEdit" value="true" checked />
                                 }
-                                else
+                                else if (effectiveOperation == "Edit")
                                 {
                                     <input type="checkbox" name="permissions[@i].CanEdit" value="true" />
                                 }
+                                else
+                                {
+                                    <input type="checkbox" disabled aria-label="Edit is not applicable for @permissionPage.DisplayName" />
+                                }
                                 <input type="hidden" name="permissions[@i].CanEdit" value="false" />
                             </td>
-                            <td>
-                                @if (permissions?.CanDelete == true)
+                            <td class="permission-op @(effectiveOperation == "Delete" ? "permission-op-active" : "permission-op-na")">
+                                @if (effectiveOperation == "Delete" && permissions?.CanDelete == true)
                                 {
                                     <input type="checkbox" name="permissions[@i].CanDelete" value="true" checked />
                                 }
-                                else
+                                else if (effectiveOperation == "Delete")
                                 {
                                     <input type="checkbox" name="permissions[@i].CanDelete" value="true" />
                                 }
+                                else
+                                {
+                                    <input type="checkbox" disabled aria-label="Delete is not applicable for @permissionPage.DisplayName" />
+                                }
                                 <input type="hidden" name="permissions[@i].CanDelete" value="false" />
                             </td>
-                            <td>
-                                @if (permissions?.CanSubmit == true)
+                            <td class="permission-op @(effectiveOperation == "Submit" ? "permission-op-active" : "permission-op-na")">
+                                @if (effectiveOperation == "Submit" && permissions?.CanSubmit == true)
                                 {
                                     <input type="checkbox" name="permissions[@i].CanSubmit" value="true" checked />
                                 }
-                                else
+                                else if (effectiveOperation == "Submit")
                                 {
                                     <input type="checkbox" name="permissions[@i].CanSubmit" value="true" />
                                 }
+                                else
+                                {
+                                    <input type="checkbox" disabled aria-label="Submit is not applicable for @permissionPage.DisplayName" />
+                                }
                                 <input type="hidden" name="permissions[@i].CanSubmit" value="false" />
                             </td>
-                            <td>
-                                @if (permissions?.CanExport == true)
+                            <td class="permission-op @(effectiveOperation == "Export" ? "permission-op-active" : "permission-op-na")">
+                                @if (effectiveOperation == "Export" && permissions?.CanExport == true)
                                 {
                                     <input type="checkbox" name="permissions[@i].CanExport" value="true" checked />
                                 }
-                                else
+                                else if (effectiveOperation == "Export")
                                 {
                                     <input type="checkbox" name="permissions[@i].CanExport" value="true" />
+                                }
+                                else
+                                {
+                                    <input type="checkbox" disabled aria-label="Export is not applicable for @permissionPage.DisplayName" />
                                 }
                                 <input type="hidden" name="permissions[@i].CanExport" value="false" />
                             </td>
